@@ -19,16 +19,16 @@ End Sub
 'STEP2
 Sub 出力()
 
-    Dim dc As dataConvert
-    Set dc = New dataConvert
+    Dim ox As organizeXML
+    Set ox = New organizeXML
     
-    rs = MsgBox("データ変換を実行しますか？", vbYesNo)
+    rs = MsgBox("データ整理を実行しますか？", vbYesNo)
     
     If rs = vbNo Then
-        MsgBox "データ変換を中断しました。"
+        MsgBox "データ整理を中断しました。"
         Exit Sub
     Else
-        Call dc.データ変換
+        Call ox.organizeXML
     End If
 
 End Sub
