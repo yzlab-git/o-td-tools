@@ -48,10 +48,12 @@ Sub ListFoldersAndFiles()
     Set rng = ws.Range(Cells(3, 5), Cells(ws.Cells(Rows.Count, 5).End(xlUp).row, 10))
     Call setBorder(rng)
     rng.Columns.AutoFit
-    
+
+    Application.StatusBar = False
     Application.ScreenUpdating = True
 End Sub
 
+'フォルダとファイルを識別して一覧化
 Function ListSubFolders(folderPath As String, row As Long, wsRow As Long, level As Integer, ws As Worksheet, ws2 As Worksheet, cnt As Long)
     Dim fso As Object
     Dim folder As Object
@@ -85,6 +87,7 @@ Function ListSubFolders(folderPath As String, row As Long, wsRow As Long, level 
             ' XMLファイルの内容を読み取る
             Call ReadXMLFile(file.Path, ws, wsRow)
             cnt = cnt + 1
+            Application.StatusBar = "XMLファイルを" & cnt & "件読取中..."
         End If
     Next file
     
@@ -93,6 +96,7 @@ Function ListSubFolders(folderPath As String, row As Long, wsRow As Long, level 
     
 End Function
 
+'XMLファイルのタグから情報を取得
 Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long)
     Dim xmlDoc As Object
     Set xmlDoc = CreateObject("MSXML2.DOMDocument")
@@ -105,9 +109,6 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long)
     End If
     
     Dim applicationDate As String
-    Dim applicationDate_year As String
-    Dim applicationDate_month As String
-    Dim applicationDate_day As String
     Dim companyName As String
     Dim applicantName As String
     Dim applicationType As String
@@ -119,39 +120,55 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long)
     
     On Error Resume Next
     applicationDate = xmlDoc.SelectSingleNode("//DOCNO").Text
-    applicationDate_year = xmlDoc.SelectSingleNode("//P1_年").Text
-    applicationDate_month = xmlDoc.SelectSingleNode("//P1_月").Text
-    applicationDate_day = xmlDoc.SelectSingleNode("//P1_日").Text
     companyName = xmlDoc.SelectSingleNode("//P1_事業所名称").Text
-    applicantName = xmlDoc.SelectSingleNode("//P1_被保険者氏名x漢字氏名").Text
-    On Error GoTo 0
+
+    '会社名は<～事業所名称>となっているタグから取得する
+    Dim regexA As Object
+    Set regexA = CreateObject("VBScript.RegExp")
+    regexA.Pattern = ".*事業所名称$"
+    regexA.Global = True
     
-    ' 申請種別（届書コード）取得のため正規表現オブジェクトの作成
-    Dim regex As Object
-    Set regex = CreateObject("VBScript.RegExp")
-    regex.Pattern = "N\d{7}"
-    regex.Global = True
+    '対象者名は<～漢字氏名>となっているタグから取得する
+    Dim regexB As Object
+    Set regexB = CreateObject("VBScript.RegExp")
+    regexB.Pattern = ".*漢字氏名$"
+    regexB.Global = True
     
     Dim nodes As Object
     Dim node As Object
-    Dim matches As Object
-    Dim match As Object
     
     ' XML内のすべてのノードを取得
     Set nodes = xmlDoc.getElementsByTagName("*")
     
     ' 特定のパターンに一致する値を検索
     For Each node In nodes
-        If regex.Test(node.tagName) Then
-            Set matches = regex.Execute(node.tagName)
-            If matches.Count > 0 Then
-                applicationType = matches(0).Value
-            End If
+        '会社名
+        If regexA.Test(node.tagName) Then
+            companyName = node.Text
+        End If
+        
+        '対象者名
+        If regexB.Test(node.tagName) Then
+            applicantName = node.Text
         End If
     Next node
     
+    Set regexA = Nothing
+    Set regexB = Nothing
+    
+    applicationType = xmlDoc.SelectSingleNode("//様式ID").Text
+    On Error GoTo 0
+
+    Dim regex As Object
+    Set regex = CreateObject("VBScript.RegExp")
+    regex.Global = True
+    
     Dim hasInfo As Boolean
     hasInfo = False
+    
+    ' IDリストを取得
+    Dim idList As Variant
+    idList = getIdList()
     
     If applicationDate <> "" Then
         regex.Pattern = "(\d+)"
@@ -181,8 +198,11 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long)
         hasInfo = True
     End If
     If applicationType <> "" Then
-        ws.Cells(rowIndex, 10).Value = applicationType
-        hasInfo = True
+        result = isInIdList(applicationType, idList)
+        If result <> "" Then
+            ws.Cells(rowIndex, 10).Value = result
+            hasInfo = True
+        End If
     End If
     
     If hasInfo = True Then
@@ -202,3 +222,45 @@ Sub setBorder(rng As Range)
     End With
 End Sub
 
+' 二次元配列としてIDリストを取得 (ID, 略称)
+Function getIdList() As Variant
+    '様式IDの追加削除がある場合はこちらを修正する
+    Dim idList As Variant
+    idList = Array( _
+        Array("495000020328029845", ""), _
+        Array("495000012454011861", ""), _
+        Array("495000020338029859", ""), _
+        Array("495000020332029849", ""), _
+        Array("495000020332029850", ""), _
+        Array("495000020333029851", ""), _
+        Array("495000020334029852", ""), _
+        Array("495000020329029846", ""), _
+        Array("495000020335029853", ""), _
+        Array("495000020335029854", ""), _
+        Array("495000020336029855", ""), _
+        Array("495000020337029856", ""), _
+        Array("495000020337029857", ""), _
+        Array("495000020325029841", "雇資格取得"), _
+        Array("495000020326029842", "雇資格喪失（離職票なし）"), _
+        Array("495000020327029843", "雇資格喪失（離職票あり）"), _
+        Array("495000020327029844", ""), _
+        Array("495000020339029860", ""), _
+        Array("495000020331029848", ""), _
+        Array("495000020330029847", ""))
+        
+    getIdList = idList
+End Function
+
+'取得した様式IDの値がidListに存在しているかチェック、存在する場合は略称を返却
+Function isInIdList(checkValue As String, arr As Variant) As String
+    Dim i As Long
+    
+    For i = LBound(arr) To UBound(arr)
+        If arr(i)(0) = checkValue Then
+            isInIdList = arr(i)(1)
+            Exit Function
+        End If
+    Next i
+    
+    isInIdList = "" ' IDが見つからない場合は空文字を返す
+End Function

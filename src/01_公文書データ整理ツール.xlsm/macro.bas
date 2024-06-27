@@ -12,40 +12,25 @@ Sub 公文書データ読取()
         Exit Sub
     Else
         Call gfc.ListFoldersAndFiles
+        MsgBox "公文書データ読取が完了しました。"
     End If
 
 End Sub
 
 'STEP2
-Sub 出力()
+Sub 公文書データ整理()
 
     Dim ox As organizeXML
     Set ox = New organizeXML
     
-    rs = MsgBox("データ整理を実行しますか？", vbYesNo)
+    rs = MsgBox("公文書データ整理を実行しますか？", vbYesNo)
     
     If rs = vbNo Then
-        MsgBox "データ整理を中断しました。"
+        MsgBox "公文書データ整理を中断しました。"
         Exit Sub
     Else
         Call ox.organizeXML
+        MsgBox "公文書データ整理が完了しました。"
     End If
 
 End Sub
-
-Sub ファイル出力() 'STEP3
-
-    Dim dc As dataConvert
-    Set dc = New dataConvert
-    
-    rs = MsgBox("CSV取込を実行しますか？", vbYesNo)
-    
-    If rs = vbNo Then
-        MsgBox "CSV取込を中断しました。"
-        Exit Sub
-    Else
-        Call dc.fileOutput
-    End If
-
-End Sub
-

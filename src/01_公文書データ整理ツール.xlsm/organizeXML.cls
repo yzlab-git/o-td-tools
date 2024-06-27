@@ -23,6 +23,7 @@ Sub organizeXML()
     Dim logFile As Object
     Dim timestamp As String
     Dim coll As Collection
+    Dim cnt As Long
     '出力先
     Dim folderPath As String
     '申請日付
@@ -38,10 +39,14 @@ Sub organizeXML()
     
     Application.ScreenUpdating = True 'テスト時はTrue、納品時はFalseにする
     
+    '取得日時をセット
+    ws.Cells(9, 13).Value = Now
     '最下行を取得
     maxRow = ws.Cells(Rows.Count, 5).End(xlUp).row
     '出力先を取得
     folderPath = ws.Cells(2, 16).Value
+    'ステータスバー用
+    cnt = 1
     
     '未整理フォルダがあれば削除して、その後フォルダ作成
     noInfoPath = folderPath & "\未整理"
@@ -70,16 +75,17 @@ Sub organizeXML()
     Set coll = New Collection
     
     For i = 4 To maxRow
-        Call getXMLInfo(ws, i, logFile, coll)
+        Call getXMLInfo(ws, i, logFile, coll, cnt)
     Next i
     
     logFile.Close
+    Application.StatusBar = False
     Application.ScreenUpdating = True
 
 End Sub
 
 'XMLを格納するフォルダ作成と条件に該当するXMLコピー
-Sub getXMLInfo(ws As Worksheet, i As Long, logFile As Object, coll As Collection)
+Sub getXMLInfo(ws As Worksheet, i As Long, logFile As Object, coll As Collection, cnt As Long)
     Dim maxRow As Long
     Dim regexA As Object
     Dim XMLPath As String
@@ -110,6 +116,7 @@ Sub getXMLInfo(ws As Worksheet, i As Long, logFile As Object, coll As Collection
         XMLPath = ws.Cells(i, 5).Value
         ' 正規表現Aチェック
         If regexA.Test(XMLPath) Then
+            Application.StatusBar = "XMLファイルを" & cnt & "件整理中..."
             docPath = ""
             
             '公文書1もしくは公文書2までの文字列を含んだパスを取得
@@ -132,7 +139,7 @@ Sub getXMLInfo(ws As Worksheet, i As Long, logFile As Object, coll As Collection
             
             '取得完了したらフォルダを作成して、XMLを整理
             Call copyXMLFiles(ws, extractedData, docPath, logFile, coll)
-            
+            cnt = cnt + 1
         End If
 
 End Sub
