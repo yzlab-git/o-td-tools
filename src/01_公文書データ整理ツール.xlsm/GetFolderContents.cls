@@ -7,94 +7,47 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
-Sub ListFoldersAndFiles()
-    Dim folderPath As String
-    Dim startRow As Long
-    Dim ws As Worksheet
-    Dim ws2 As Worksheet
-    Dim wsRow As Long
-    Dim rng As Range
-    Dim XMLcnt As Long
-
-    Set ws = Worksheets("マクロ")
-    Set ws2 = Worksheets("フォルダツリー")
-    
-    ' フォルダパスAを"マクロ"シートのB2セルから取得
-    folderPath = ws.Cells(2, 5).Value
-    
-    If folderPath = "" Then
-        MsgBox "読取したいフォルダのパスを入力してください。" & vbLf & "処理を中断します。"
-        ws.Cells(2, 5).Interior.ColorIndex = 6 'フォルダパスのセルを黄色ぬりつぶし
-        End
-    End If
-    
-    startRow = 1 ' フォルダツリー出力を開始する行番号
-    wsRow = 3  '一覧出力を開始する行番号
-    XMLcnt = 0 'XML読込件数
-    
-    Application.ScreenUpdating = True 'テスト時はTrue、納品時はFalseにする
-    ws.Cells(2, 5).Interior.ColorIndex = xlNone
-    ws.Range(Cells(4, 5), Cells(Rows.Count, 10)).Clear
-    ws2.Cells.Clear
-    ws2.Cells(startRow, 1).Value = folderPath
-    XMLcnt = ListSubFolders(folderPath, startRow, wsRow, 1, ws, ws2, 0)
-    
-    
-    ' 取得日時をセット
-    ws.Cells(9, 3).Value = Now
-    'XML読込件数をセット
-    ws.Cells(10, 3).Value = XMLcnt
-    '罫線と列幅調整
-    Set rng = ws.Range(Cells(3, 5), Cells(ws.Cells(Rows.Count, 5).End(xlUp).row, 10))
-    Call setBorder(rng)
-    rng.Columns.AutoFit
-
-    Application.StatusBar = False
-    Application.ScreenUpdating = True
-End Sub
-
-'フォルダとファイルを識別して一覧化
-Function ListSubFolders(folderPath As String, row As Long, wsRow As Long, level As Integer, ws As Worksheet, ws2 As Worksheet, cnt As Long)
+'XMLファイルを含むフォルダの中身を識別して、XMLファイル読取処理を行う
+Sub getFoldersAndFiles(folderPath As String, wsRow As Long, ws As Worksheet, ws2 As Worksheet)
     Dim fso As Object
     Dim folder As Object
     Dim subFolder As Object
     Dim file As Object
-    Dim indent As String
-    Dim startRow As Long
+    Dim hasXML As Boolean
+    Dim var As Variant
     
     Set fso = CreateObject("Scripting.FileSystemObject")
     Set folder = fso.GetFolder(folderPath)
+    hasXML = False
     
-    startRow = row
-    
-    ' フォルダのリスト
-    For Each subFolder In folder.SubFolders
-        row = row + 1
-        wsRow = wsRow + 1
-        ws2.Cells(row, level).Value = subFolder.Name
-        ws.Cells(wsRow, 5).Value = subFolder.Path ' "マクロ"シートのH列にフォルダパスをセット
-        Call ListSubFolders(subFolder.Path, row, wsRow, level + 1, ws, ws2, cnt)
-    Next subFolder
-    
-    ' ファイルのリスト
+    'XML存在チェック
     For Each file In folder.Files
-        row = row + 1
-        wsRow = wsRow + 1
-        ws2.Cells(row, level).Value = file.Name
-        ws.Cells(wsRow, 5).Value = file.Path  ' "マクロ"シートのH列にファイルパスをセット
-        
-        If LCase(Right(file.Name, 4)) = ".xml" Then
-            ' XMLファイルの内容を読み取る
-            Call ReadXMLFile(file.Path, ws, wsRow)
-            cnt = cnt + 1
-            Application.StatusBar = "XMLファイルを" & cnt & "件読取中..."
+        If LCase(fso.GetExtensionName(file.Name)) = "xml" Then
+            hasXML = True
+            Exit For
         End If
     Next file
     
-    'XML読込件数
-    ListSubFolders = cnt
-    
-End Function
+    If hasXML = False Then
+        'フォルダのリスト
+        For Each subFolder In folder.SubFolders
+            wsRow = wsRow + 1
+            ws.Cells(wsRow, 5).Value = subFolder.Path 'マクロシートのE列にフォルダパスをセット
+            Call getFoldersAndFiles(subFolder.Path, wsRow, ws, ws2)
+            Exit Sub
+        Next subFolder
+    Else
+        'ファイルのリスト
+        For Each file In folder.Files
+            wsRow = wsRow + 1
+            ws.Cells(wsRow, 5).Value = file.Path  'マクロシートのE列にファイルパスをセット
+            If LCase(fso.GetExtensionName(file.Name)) = "xml" Then
+                ' XMLファイルの内容を読み取る
+                Call ReadXMLFile(file.Path, ws, wsRow)
+            End If
+        Next file
+    End If
+End Sub
 
 'XMLファイルのタグから情報を取得
 Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long)
@@ -120,7 +73,6 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long)
     
     On Error Resume Next
     applicationDate = xmlDoc.SelectSingleNode("//DOCNO").Text
-    companyName = xmlDoc.SelectSingleNode("//P1_事業所名称").Text
 
     '会社名は<～事業所名称>となっているタグから取得する
     Dim regexA As Object
@@ -213,42 +165,26 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long)
     End If
 End Sub
 
-'罫線を設定する
-Sub setBorder(rng As Range)
-    With rng.Borders
-        .LineStyle = xlContinuous
-        .Weight = xlThin
-        .ColorIndex = 0 '黒色
-    End With
-End Sub
-
-' 二次元配列としてIDリストを取得 (ID, 略称)
+' 様式IDマスタシートから二次元配列として様式IDリストを取得 (ID, 略称)
 Function getIdList() As Variant
-    '様式IDの追加削除がある場合はこちらを修正する
-    Dim idList As Variant
-    idList = Array( _
-        Array("495000020328029845", ""), _
-        Array("495000012454011861", ""), _
-        Array("495000020338029859", ""), _
-        Array("495000020332029849", ""), _
-        Array("495000020332029850", ""), _
-        Array("495000020333029851", ""), _
-        Array("495000020334029852", ""), _
-        Array("495000020329029846", ""), _
-        Array("495000020335029853", ""), _
-        Array("495000020335029854", ""), _
-        Array("495000020336029855", ""), _
-        Array("495000020337029856", ""), _
-        Array("495000020337029857", ""), _
-        Array("495000020325029841", "雇資格取得"), _
-        Array("495000020326029842", "雇資格喪失（離職票なし）"), _
-        Array("495000020327029843", "雇資格喪失（離職票あり）"), _
-        Array("495000020327029844", ""), _
-        Array("495000020339029860", ""), _
-        Array("495000020331029848", ""), _
-        Array("495000020330029847", ""))
-        
-    getIdList = idList
+    '様式IDの追加削除がある場合は「様式IDマスタ」シートを修正する
+    Dim maxRow As Long
+    Dim DataRange As Range
+    Dim ws As Worksheet
+    Set ws = Worksheets("様式IDマスタ")
+    
+    '最終行の取得
+    maxRow = ws.Cells(Rows.Count, 2).End(xlUp).row
+    
+    'データ範囲の設定
+    Set DataRange = ws.Range(ws.Cells(2, 2), ws.Cells(maxRow, 3))
+    
+    'データ範囲を配列に格納
+    dataArray = DataRange.Value
+    
+    '二次元配列を返却
+    getIdList = dataArray
+
 End Function
 
 '取得した様式IDの値がidListに存在しているかチェック、存在する場合は略称を返却
@@ -256,8 +192,8 @@ Function isInIdList(checkValue As String, arr As Variant) As String
     Dim i As Long
     
     For i = LBound(arr) To UBound(arr)
-        If arr(i)(0) = checkValue Then
-            isInIdList = arr(i)(1)
+        If arr(i, 1) = checkValue Then
+            isInIdList = arr(i, 2)
             Exit Function
         End If
     Next i

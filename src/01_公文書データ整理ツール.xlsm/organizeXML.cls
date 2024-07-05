@@ -7,85 +7,8 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
-Sub organizeXML()
-    Dim ws As Worksheet
-    Dim ws2 As Worksheet
-    Dim fso As Object
-    Set ws = Worksheets("マクロ")
-    Set ws2 = Worksheets("フォルダツリー")
-    Set fso = CreateObject("Scripting.FileSystemObject")
-    
-    Dim i As Long
-    Dim maxRow As Long
-    Dim noInfoPath As String
-    Dim logFolderPath As String
-    Dim logFilePath As String
-    Dim logFile As Object
-    Dim timestamp As String
-    Dim coll As Collection
-    Dim cnt As Long
-    '出力先
-    Dim folderPath As String
-    '申請日付
-    Dim applicationDate As String
-    '会社名
-    Dim companyName As String
-    '対象者名
-    Dim applicntName As String
-    '申請種別
-    Dim applicationType As String
-    'XMLパス
-    Dim XMLPath As String
-    
-    Application.ScreenUpdating = True 'テスト時はTrue、納品時はFalseにする
-    
-    '取得日時をセット
-    ws.Cells(9, 13).Value = Now
-    '最下行を取得
-    maxRow = ws.Cells(Rows.Count, 5).End(xlUp).row
-    '出力先を取得
-    folderPath = ws.Cells(2, 16).Value
-    'ステータスバー用
-    cnt = 1
-    
-    '未整理フォルダがあれば削除して、その後フォルダ作成
-    noInfoPath = folderPath & "\未整理"
-    If Dir(noInfoPath, vbDirectory) <> "" Then
-        fso.DeleteFolder noInfoPath
-    End If
-    fso.createfolder noInfoPath
-    
-    'ログフォルダ作成
-    logFolderPath = folderPath & "\log"
-    If Dir(logFolderPath, vbDirectory) = "" Then
-        fso.createfolder logFolderPath
-    End If
-    
-    'ログファイル作成
-    timestamp = format(Now, "yyyymmdd_HHmmss")
-    logFilePath = logFolderPath & "\log_" & timestamp & ".txt"
-    Set logFile = fso.CreateTextFile(logFilePath, True)
-    Set logFile = Nothing
-    Set logFile = fso.OpenTextFile(logFilePath, 8)
-    logFile.writeline "[INFO]   ：公文書のデータ整理を実行しました。実行日時 " & format(Now, "yyyy/mm/dd HH:mm:ss")
-    logFile.writeline "[INFO]   ：XML読込件数 " & ws.Cells(10, 3).Value & "件"
-    logFile.writeline "[INFO]   ：---------------------------------------------------"
-    
-    'ログ出力重複確認用
-    Set coll = New Collection
-    
-    For i = 4 To maxRow
-        Call getXMLInfo(ws, i, logFile, coll, cnt)
-    Next i
-    
-    logFile.Close
-    Application.StatusBar = False
-    Application.ScreenUpdating = True
-
-End Sub
-
 'XMLを格納するフォルダ作成と条件に該当するXMLコピー
-Sub getXMLInfo(ws As Worksheet, i As Long, logFile As Object, coll As Collection, cnt As Long)
+Function getXMLInfo(outputPath As String, ws As Worksheet, logFile As Object, coll As Collection)
     Dim maxRow As Long
     Dim regexA As Object
     Dim XMLPath As String
@@ -110,13 +33,15 @@ Sub getXMLInfo(ws As Worksheet, i As Long, logFile As Object, coll As Collection
     regexB.IgnoreCase = True
     
     ' パス一覧を取得
-    Set docPaths = ws.Range(Cells(4, 5), Cells(maxRow, 5))
+    Set docPaths = ws.Range(Cells(5, 5), Cells(maxRow, 5))
+    '各種情報を詰める
+    Set extractedData = New Collection
     
     '各フォルダの公文書1もしくは公文書2配下のXMLから各種情報を取得する
+    For i = 5 To maxRow
         XMLPath = ws.Cells(i, 5).Value
         ' 正規表現Aチェック
         If regexA.Test(XMLPath) Then
-            Application.StatusBar = "XMLファイルを" & cnt & "件整理中..."
             docPath = ""
             
             '公文書1もしくは公文書2までの文字列を含んだパスを取得
@@ -127,28 +52,20 @@ Sub getXMLInfo(ws As Worksheet, i As Long, logFile As Object, coll As Collection
             Next match
             
             'パス一覧からdocPathが含まれるパスを取得し、コレクションに格納
-            t = 4
-            Set extractedData = New Collection
-            For Each srcPath In docPaths
-                If InStr(srcPath, docPath) > 0 And LCase(Right(srcPath, 4)) = ".xml" Then
-                    data = Array(ws.Cells(t, 7).Value, ws.Cells(t, 8).Value, ws.Cells(t, 9).Value, ws.Cells(t, 10).Value)
-                    extractedData.Add data
-                End If
-            t = t + 1
-            Next srcPath
-            
-            '取得完了したらフォルダを作成して、XMLを整理
-            Call copyXMLFiles(ws, extractedData, docPath, logFile, coll)
-            cnt = cnt + 1
+            If InStr(XMLPath, docPath) > 0 And LCase(Right(XMLPath, 4)) = ".xml" Then
+                data = Array(ws.Cells(i, 7).Value, ws.Cells(i, 8).Value, ws.Cells(i, 9).Value, ws.Cells(i, 10).Value)
+                extractedData.Add data
+            End If
         End If
-
-End Sub
+    Next i
+    
+    'コレクション（XMLの各種情報）が取得完了したらフォルダを作成して、XMLを整理
+    getXMLInfo = copyXMLFiles(outputPath, ws, extractedData, docPath, logFile, coll)
+End Function
 
 'XMLファイルコピー処理
-Sub copyXMLFiles(ws As Worksheet, extractedData As Collection, srcPath As String, logFile As Object, coll As Collection)
-    Dim outputPath As String
+Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Collection, srcPath As String, logFile As Object, coll As Collection)
     Dim searchPath As String
-    Dim folderName As String
     Dim data As Variant
     Dim fso As Object
     Dim srcFolder As Object
@@ -158,6 +75,9 @@ Sub copyXMLFiles(ws As Worksheet, extractedData As Collection, srcPath As String
     Dim copyFlg As Boolean
     Dim collKey As String
     Dim keyExists As Boolean
+    Dim fol As Object
+    '実行件数確認用
+    Dim OKflg As Boolean
 
     '申請日付
     Dim applicationDate As String
@@ -168,14 +88,16 @@ Sub copyXMLFiles(ws As Worksheet, extractedData As Collection, srcPath As String
     '申請種別
     Dim applicationType As String
 
-    ' FileSystemObjectを作成
     Set fso = CreateObject("Scripting.FileSystemObject")
-    'マクロシートの出力フォルダパス
-    outputPath = ws.Cells(2, 16).Value
     '未整理フォルダパス
     noInfoPath = outputPath & "\未整理"
     'すでにファイル整理済みかどうか
     copyFlg = False
+    'フォルダ作成確認用
+    searchPath = ""
+    month = ""
+    'コピー成功したらTrue
+    OKflg = False
     
     For i = 1 To extractedData.Count
         data = extractedData(i)
@@ -203,18 +125,33 @@ Sub copyXMLFiles(ws As Worksheet, extractedData As Collection, srcPath As String
     
         'XMLコピー
         Set srcFolder = fso.GetFolder(srcPath)
+        
         For Each file In srcFolder.Files
             If LCase(fso.GetExtensionName(file.Name)) = "xml" Then
-                If Dir(noInfoPath & "\" & file.Name) = "" Then
-                    copyFlg = True
-                    logFile.writeline "[INFO]   ：XMLファイル " & file.Path
-                    fso.copyfile file.Path, noInfoPath & "\" & file.Name
-                    logFile.writeline "[INFO]   ：未整理フォルダに移動 " & noInfoPath & "\" & file.Name
+                
+                If applicationDate = "" Then
+                    applicationDate = "99999999"
                 End If
+                
+                month = Mid(applicationDate, 5, 2)
+                If Left(month, 1) = "0" Then
+                    month = Right(month, 1)
+                End If
+                
+                'コピー先パス
+                searchPath = noInfoPath & "\" & Left(applicationDate, 4) & "年\" & month & "月\" & applicationDate
+                '無ければ作成する
+                Call createFolder(searchPath)
+                copyFlg = True
+                fso.copyfolder file.Parentfolder.Path, searchPath, True 'コピー時上書きする
+                srcPath = file.Parentfolder.Path
             End If
         Next file
         
         If copyFlg Then
+            logFile.writeline "[INFO]   ：コピー元             " & srcPath
+            logFile.writeline "[INFO]   ：未整理フォルダに移動 " & searchPath
+            
             'エラー理由
             If applicationDate = "" Then
                 logFile.writeline "[ERROR]  ：申請日付の値が取得できませんでした。"
@@ -239,31 +176,10 @@ Sub copyXMLFiles(ws As Worksheet, extractedData As Collection, srcPath As String
             month = Right(month, 1)
         End If
         
-        'パスの存在確認
+        'コピー先パス
         searchPath = outputPath & "\" & Left(applicationDate, 4) & "年\" & month & "月\" & applicationDate
         '無ければフォルダ作成する
-        If Not fso.FolderExists(searchPath) Then
-            ' フォルダパスを分割
-            folderParts = Split(searchPath, "\")
-            
-            ' ルートディレクトリを設定
-            currentPath = folderParts(0) & "\"
-            
-            ' フォルダパスを再構築しながら各フォルダを作成
-            For i = 1 To UBound(folderParts)
-                currentPath = currentPath & folderParts(i) & "\"
-                If Not fso.FolderExists(currentPath) Then
-                    fso.createfolder currentPath
-                End If
-            Next i
-        End If
-        
-        '各種情報を連結し、フォルダ作成
-        folderName = companyName & " " & applicntName & " " & applicationType
-        destPath = searchPath & "\" & folderName
-        If Dir(destPath, vbDirectory) = "" Then
-            fso.createfolder destPath
-        End If
+        Call createFolder(searchPath)
         
         'XMLコピー
         Set srcFolder = fso.GetFolder(srcPath)
@@ -274,18 +190,22 @@ Sub copyXMLFiles(ws As Worksheet, extractedData As Collection, srcPath As String
                 If ExistsItem(coll, collKey) Then
                     copyFlg = True
                     coll.Add collKey
-                    logFile.writeline "[INFO]   ：XMLファイル " & file.Path
                     fso.copyfile file.Path, destPath & "\" & file.Name
-                    logFile.writeline "[INFO]   ：右記フォルダに移動 " & destPath & "\" & file.Name
+                    srcPath = file.Parentfolder.Path
                 End If
             End If
         Next file
         If copyFlg Then
+            logFile.writeline "[INFO]   ：コピー元   " & srcPath
+            logFile.writeline "[INFO]   ：コピー成功 " & searchPath
             logFile.writeline "[INFO]   ：---------------------------------------------------"
+            OKflg = True
         End If
     End If
+    
+    copyXMLFiles = OKflg
 
-End Sub
+End Function
 
 'ログ重複確認処理
 Function ExistsItem(objCol As Collection, varItem As Variant) As Boolean
@@ -307,3 +227,26 @@ Function ExistsItem(objCol As Collection, varItem As Variant) As Boolean
     Next
      
 End Function
+
+Sub createFolder(searchPath As String)
+    
+    Dim currentPath As String
+    Dim fso As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    
+    If Not fso.FolderExists(searchPath) Then
+        ' フォルダパスを分割
+        folderParts = Split(searchPath, "\")
+        
+        ' ルートディレクトリを設定
+        currentPath = folderParts(0) & "\"
+        
+        ' フォルダパスを再構築しながら各フォルダを作成
+        For i = 1 To UBound(folderParts)
+            currentPath = currentPath & folderParts(i) & "\"
+            If Not fso.FolderExists(currentPath) Then
+                fso.createFolder currentPath
+            End If
+        Next i
+    End If
+End Sub
