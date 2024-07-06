@@ -120,31 +120,33 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
         End If
     Next i
     
+    'XMLコピー
+    Set srcFolder = fso.GetFolder(srcPath)
+    
     '4つの変数のうち1つでも値がない場合は、フォルダが作成できないためエラーとする
     If applicationDate = "" Or companyName = "" Or applicntName = "" Or applicationType = "" Then
-    
-        'XMLコピー
-        Set srcFolder = fso.GetFolder(srcPath)
         
         For Each file In srcFolder.Files
             If LCase(fso.GetExtensionName(file.Name)) = "xml" Then
                 
-                If applicationDate = "" Then
-                    applicationDate = "99999999"
-                End If
+                If applicationDate <> "" Then
                 
-                month = Mid(applicationDate, 5, 2)
-                If Left(month, 1) = "0" Then
-                    month = Right(month, 1)
+                    month = Mid(applicationDate, 5, 2)
+                    If Left(month, 1) = "0" Then
+                        month = Right(month, 1)
+                    End If
+                    
+                    'コピー先パス
+                    searchPath = noInfoPath & "\" & Left(applicationDate, 4) & "年\" & month & "月\" & applicationDate & "\" & srcFolder.parentfolder.Name
+                    '無ければ作成する
+                    Call createFolder(searchPath)
+                Else
+                    'コピー先パス（日付が取得できなければ未整理フォルダ直下に移動する）
+                    searchPath = noInfoPath
                 End If
-                
-                'コピー先パス
-                searchPath = noInfoPath & "\" & Left(applicationDate, 4) & "年\" & month & "月\" & applicationDate
-                '無ければ作成する
-                Call createFolder(searchPath)
                 copyFlg = True
-                fso.copyfolder file.Parentfolder.Path, searchPath, True 'コピー時上書きする
-                srcPath = file.Parentfolder.Path
+                fso.copyfolder file.parentfolder.parentfolder.Path, searchPath, True 'コピー時上書きする
+                srcPath = file.parentfolder.Path
             End If
         Next file
         
@@ -177,12 +179,10 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
         End If
         
         'コピー先パス
-        searchPath = outputPath & "\" & Left(applicationDate, 4) & "年\" & month & "月\" & applicationDate
+        searchPath = outputPath & "\" & Left(applicationDate, 4) & "年\" & month & "月\" & applicationDate & "\" & companyName & " " & applicntName & " " & applicationType & "\" & srcFolder.parentfolder.Name
         '無ければフォルダ作成する
         Call createFolder(searchPath)
         
-        'XMLコピー
-        Set srcFolder = fso.GetFolder(srcPath)
         For Each file In srcFolder.Files
             collKey = destPath & "\" & file.Name
             If LCase(fso.GetExtensionName(file.Name)) = "xml" Then
@@ -190,8 +190,8 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
                 If ExistsItem(coll, collKey) Then
                     copyFlg = True
                     coll.Add collKey
-                    fso.copyfile file.Path, destPath & "\" & file.Name
-                    srcPath = file.Parentfolder.Path
+                    fso.copyfolder file.parentfolder.parentfolder.Path, searchPath, True 'コピー時上書きする
+                    srcPath = file.parentfolder.Path
                 End If
             End If
         Next file
