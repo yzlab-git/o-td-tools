@@ -282,11 +282,8 @@ Sub createFolder(searchPath As String)
         ' フォルダパスを再構築しながら各フォルダを作成
         For i = t To UBound(folderParts)
             currentPath = currentPath & folderParts(i) & "\"
-            '共有フォルダはパス頭が"\\"となるため、その場合は除く
-            If currentPath <> "\\" Then
-                If Not fso.FolderExists(currentPath) Then
-                    fso.createFolder currentPath
-                End If
+            If Not fso.FolderExists(currentPath) Then
+                fso.createFolder currentPath
             End If
         Next i
     End If
