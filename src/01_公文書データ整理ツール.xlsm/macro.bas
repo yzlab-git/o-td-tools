@@ -1,4 +1,22 @@
 Attribute VB_Name = "macro"
+Sub 読取フォルダ設定()
+
+    Dim sc As startCategorize
+    Set sc = New startCategorize
+    
+    Call sc.getFolderPath(1)
+
+End Sub
+
+Sub 出力フォルダ設定()
+
+    Dim sc As startCategorize
+    Set sc = New startCategorize
+    
+    Call sc.getFolderPath(2)
+
+End Sub
+
 Sub 公文書データ整理()
 
     Dim sc As startCategorize

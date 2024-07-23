@@ -78,7 +78,16 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
     Dim fol As Object
     '実行件数確認用
     Dim OKflg As Boolean
-
+    'フォルダ重複（suffix）確認用
+    Dim originPath As String
+    originPath = ""
+    'フォルダ名が重複した場合のsuffix
+    Dim suf As Long
+    suf = 1
+    'ディレクトリにsuffixを付与したフラグ
+    Dim sufFlg As Boolean
+    sufFlg = False
+    
     '申請日付
     Dim applicationDate As String
     '会社名
@@ -93,7 +102,7 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
     noInfoPath = outputPath & "\未整理"
     'すでにファイル整理済みかどうか
     copyFlg = False
-    'フォルダ作成確認用
+    'フォルダ作成確認用 → originPathで確認した後、searchPathに代入してフォルダ作成
     searchPath = ""
     month = ""
     'コピー成功したらTrue
@@ -122,9 +131,9 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
     
     'XMLコピー
     Set srcFolder = fso.GetFolder(srcPath)
-    
-    '4つの変数のうち1つでも値がない場合は、フォルダが作成できないためエラーとする
-    If applicationDate = "" Or companyName = "" Or applicntName = "" Or applicationType = "" Then
+
+    '対象者名は除き、3つの変数のうち1つでも値がない場合は、フォルダが作成できないためエラーとする
+    If applicationDate = "" Or companyName = "" Or applicationType = "" Then
         
         For Each file In srcFolder.Files
             If LCase(fso.GetExtensionName(file.Name)) = "xml" Then
@@ -153,6 +162,9 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
         If copyFlg Then
             logFile.writeline "[INFO]   ：コピー元             " & srcPath
             logFile.writeline "[INFO]   ：未整理フォルダに移動 " & searchPath
+            logFile.writeline "[INFO]   ：申請日付 [ " & applicationDate & " ]"
+            logFile.writeline "[INFO]   ：会社名   [ " & companyName & " ]"
+            logFile.writeline "[INFO]   ：申請種別 [ " & applicationType & " ]"
             
             'エラー理由
             If applicationDate = "" Then
@@ -161,10 +173,6 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
             
             If companyName = "" Then
                 logFile.writeline "[ERROR]  ：会社名の値が取得できませんでした。"
-            End If
-            
-            If applicntName = "" Then
-                logFile.writeline "[ERROR]  ：対象者名の値が取得できませんでした。"
             End If
             
             If applicationType = "" Then
@@ -179,18 +187,32 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
         End If
         
         'コピー先パス
-        searchPath = outputPath & "\" & Left(applicationDate, 4) & "年\" & month & "月\" & applicationDate & "\" & companyName & " " & applicntName & " " & applicationType & "\" & srcFolder.parentfolder.Name
-        '無ければフォルダ作成する
+        originPath = outputPath & "\" & Left(applicationDate, 4) & "年\" & month & "月\" & applicationDate & "\" & companyName & " " & applicntName & " " & applicationType
+        
+        'フォルダ名重複確認
+        If Dir(originPath, vbDirectory) = "" Then
+            searchPath = originPath & "\" & srcFolder.parentfolder.Name
+        Else
+            Do While Dir(searchPath, vbDirectory) <> ""
+                searchPath = originPath & "_" & suf & "\" & srcFolder.parentfolder.Name
+                suf = suf + 1
+            Loop
+            sufFlg = True
+        End If
+        'フォルダ作成
         Call createFolder(searchPath)
         
         For Each file In srcFolder.Files
             collKey = destPath & "\" & file.Name
             If LCase(fso.GetExtensionName(file.Name)) = "xml" Then
                 'ログ重複確認
-                If ExistsItem(coll, collKey) Then
+                If ExistsItem(coll, collKey, sufFlg) Then
                     copyFlg = True
                     coll.Add collKey
-                    fso.copyfolder file.parentfolder.parentfolder.Path, searchPath, True 'コピー時上書きする
+                    'コピーの際は公文書1と2のフォルダを同時にコピーするので、公文書2のフォルダ精査時はコピーのみスキップする
+                    If InStr(srcFolder, "公文書2") = 0 Then
+                        fso.copyfolder file.parentfolder.parentfolder.Path, searchPath
+                    End If
                     srcPath = file.parentfolder.Path
                 End If
             End If
@@ -198,22 +220,29 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
         If copyFlg Then
             logFile.writeline "[INFO]   ：コピー元   " & srcPath
             logFile.writeline "[INFO]   ：コピー成功 " & searchPath
+            If applicntName = "" Then
+                logFile.writeline "[CAUTION]：XMLから対象者名が取得できなかったので、対象者名無しで出力しています。"
+            End If
             logFile.writeline "[INFO]   ：---------------------------------------------------"
             OKflg = True
         End If
     End If
     
+    '結果返却
     copyXMLFiles = OKflg
-
+    
 End Function
 
 'ログ重複確認処理
-Function ExistsItem(objCol As Collection, varItem As Variant) As Boolean
+Function ExistsItem(objCol As Collection, varItem As Variant, sufFlg As Boolean) As Boolean
      
     Dim v As Variant
      
     '戻り値の初期値：False
     ExistsItem = True
+    
+    'sufFlgがTrueの場合は戻り値「True」（Collection内で重複してもXMLをコピーするため）
+    If sufFlg = True Then Exit Function
      
     'Collectionのメンバー数が「0」の場合は戻り値「True」
     If objCol.Count = 0 Then Exit Function
@@ -231,21 +260,33 @@ End Function
 Sub createFolder(searchPath As String)
     
     Dim currentPath As String
+    Dim t As Long
+    t = 1
     Dim fso As Object
     Set fso = CreateObject("Scripting.FileSystemObject")
     
     If Not fso.FolderExists(searchPath) Then
-        ' フォルダパスを分割
-        folderParts = Split(searchPath, "\")
         
-        ' ルートディレクトリを設定
-        currentPath = folderParts(0) & "\"
+        'フォルダパスを分割
+        folderParts = Split(searchPath, "\")
+    
+        'UNCパスの場合（\\～\...）
+        If InStr(searchPath, "\\") = 1 Then
+            currentPath = "\\" & folderParts(2) & "\"
+            t = 3
+        Else
+            'ルートディレクトリを設定
+            currentPath = folderParts(0) & "\"
+        End If
         
         ' フォルダパスを再構築しながら各フォルダを作成
-        For i = 1 To UBound(folderParts)
+        For i = t To UBound(folderParts)
             currentPath = currentPath & folderParts(i) & "\"
-            If Not fso.FolderExists(currentPath) Then
-                fso.createFolder currentPath
+            '共有フォルダはパス頭が"\\"となるため、その場合は除く
+            If currentPath <> "\\" Then
+                If Not fso.FolderExists(currentPath) Then
+                    fso.createFolder currentPath
+                End If
             End If
         Next i
     End If

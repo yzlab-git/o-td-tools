@@ -43,15 +43,8 @@ Sub startCategorize()
     Dim outputPath As String
     outputPath = ws.Cells(3, 5).Value
     
-    If readPath = "" Then
-        MsgBox "読取したいフォルダのパスを入力してください。" & vbLf & "処理を中断します。"
-        ws.Cells(2, 5).Interior.ColorIndex = 6 'フォルダパスのセルを黄色ぬりつぶし
-        End
-    ElseIf outputPath = "" Then
-        MsgBox "出力したいフォルダのパスを入力してください。" & vbLf & "処理を中断します。"
-        ws.Cells(3, 5).Interior.ColorIndex = 6 'フォルダパスのセルを黄色ぬりつぶし
-        End
-    End If
+    'エラーチェック
+    Call folderCheck(ws, readPath, outputPath)
     
     Application.ScreenUpdating = True 'テスト時はTrue、納品時はFalseにする
     
@@ -206,5 +199,61 @@ Sub deleteValue()
         Cells(7, 3).Value = Null
         Cells(8, 3).Value = Null
     End With
+
+End Sub
+
+Sub getFolderPath(i As Long)
+    
+    Dim ws As Worksheet
+    Set ws = Worksheets("マクロ")
+    Dim TargetFldName As String '選択したフォルダパス格納用
+
+    'ダイアログフォルダ表示
+    If i = 1 Then
+        titleStr = "読取"
+        row = 2
+    Else
+        titleStr = "出力"
+        row = 3
+    End If
+    
+    Application.FileDialog(msoFileDialogFolderPicker).Title = titleStr & "するフォルダを選択してください"
+    If Application.FileDialog(msoFileDialogFolderPicker).Show = True Then 'フォルダを選んでダイアログOK押下
+       TargetFldName = Application.FileDialog(msoFileDialogFolderPicker).SelectedItems(1) '選択したフォルダのパスを格納
+       ws.Cells(row, 5).Value = TargetFldName 'アクティブセルにフォルダパスを入力
+       MsgBox titleStr & "フォルダ設定が完了しました。"
+    Else
+        MsgBox titleStr & "フォルダ設定を中断しました。"
+    End If
+
+End Sub
+
+Sub folderCheck(ws As Worksheet, readPath As String, outputPath As String)
+
+    '選択したパスが同じ場合はエラー
+    If readPath = outputPath Then
+        MsgBox "読取フォルダと出力フォルダのパスが同じです。" & vbLf & "処理を中断します。"
+        End
+    End If
+    
+    'パスが存在しない場合はエラー
+    If Dir(readPath, vbDirectory) = "" Then
+        MsgBox "読取フォルダが存在しませんでした。" & vbLf & "処理を中断します。"
+        End
+    ElseIf Dir(outputPath, vbDirectory) = "" Then
+        MsgBox "読取フォルダが存在しませんでした。" & vbLf & "処理を中断します。"
+        End
+    End If
+    
+    '未入力はエラー
+    If readPath = "" Then
+        MsgBox "読取したいフォルダのパスを入力してください。" & vbLf & "処理を中断します。"
+        ws.Cells(2, 5).Interior.ColorIndex = 6 'フォルダパスのセルを黄色ぬりつぶし
+        End
+    ElseIf outputPath = "" Then
+        MsgBox "出力したいフォルダのパスを入力してください。" & vbLf & "処理を中断します。"
+        ws.Cells(3, 5).Interior.ColorIndex = 6 'フォルダパスのセルを黄色ぬりつぶし
+        End
+    End If
 
 End Sub
