@@ -8,7 +8,7 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 'XMLファイルを含むフォルダの中身を識別して、XMLファイル読取処理を行う
-Sub getFoldersAndFiles(folderPath As String, wsRow As Long, ws As Worksheet, ws2 As Worksheet)
+Sub getFoldersAndFiles(folderPath As Object, wsRow As Long, ws As Worksheet, ws2 As Worksheet)
     Dim fso As Object
     Dim folder As Object
     Dim subFolder As Object
@@ -17,36 +17,47 @@ Sub getFoldersAndFiles(folderPath As String, wsRow As Long, ws As Worksheet, ws2
     Dim var As Variant
     
     Set fso = CreateObject("Scripting.FileSystemObject")
-    Set folder = fso.GetFolder(folderPath)
+    Set folder = fso.GetFolder(folderPath) 'ここのパスは数字の羅列フォルダ ex. C:\work\o-td-tools\資料\01_テスト\0604384629
     hasXML = False
     
-    'XML存在チェック
-    For Each file In folder.Files
-        If LCase(fso.GetExtensionName(file.Name)) = "xml" Then
-            hasXML = True
-            Exit For
-        End If
-    Next file
+    'サブフォルダのコレクションを取得
+    Dim subFolders As Object
+    Set subFolders = folder.subFolders
     
-    If hasXML = False Then
-        'フォルダのリスト
-        For Each subFolder In folder.SubFolders
-            wsRow = wsRow + 1
-            ws.Cells(wsRow, 5).Value = subFolder.Path 'マクロシートのE列にフォルダパスをセット
-            Call getFoldersAndFiles(subFolder.Path, wsRow, ws, ws2)
-            Exit Sub
-        Next subFolder
-    Else
-        'ファイルのリスト
-        For Each file In folder.Files
-            wsRow = wsRow + 1
-            ws.Cells(wsRow, 5).Value = file.Path  'マクロシートのE列にファイルパスをセット
+    'サブフォルダの数を取得
+    Dim subFolderArray() As Object
+    ReDim subFolderArray(1 To folder.subFolders.Count)
+    
+    'サブフォルダを配列に変換
+    w = 1
+    For Each subFolder In subFolders
+        Set subFolderArray(w) = subFolder
+        w = w + 1
+    Next subFolder
+    
+    For i = 1 To folder.subFolders.Count
+    
+        'XML存在チェック
+        For Each file In subFolderArray(i).Files
             If LCase(fso.GetExtensionName(file.Name)) = "xml" Then
-                ' XMLファイルの内容を読み取る
-                Call ReadXMLFile(file.Path, ws, wsRow)
+                hasXML = True
+                Exit For
             End If
         Next file
-    End If
+        
+        If hasXML = True Then
+            'ファイルのリスト
+            For Each file In subFolderArray(i).Files
+                wsRow = wsRow + 1
+                ws.Cells(wsRow, 5).Value = file.Path  'マクロシートのE列にファイルパスをセット
+                If LCase(fso.GetExtensionName(file.Name)) = "xml" Then
+                    ' XMLファイルの内容を読み取る
+                    Call ReadXMLFile(file.Path, ws, wsRow)
+                End If
+            Next file
+        End If
+        
+    Next i
 End Sub
 
 'XMLファイルのタグから情報を取得
@@ -198,5 +209,5 @@ Function isInIdList(checkValue As String, arr As Variant) As String
         End If
     Next i
     
-    isInIdList = "" ' IDが見つからない場合は空文字を返す
+    isInIdList = "'" & checkValue ' IDが見つからない場合は空文字を返す
 End Function

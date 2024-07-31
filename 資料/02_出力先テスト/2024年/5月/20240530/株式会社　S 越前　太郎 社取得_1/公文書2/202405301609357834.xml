@@ -6,8 +6,8 @@
 	</FRONT>
 	<BODY ID="DOCBODY">
 		<STYLESHEET URI="kagami.xsl"></STYLESHEET>
-		<DOCNO>202405281609308024</DOCNO>
-		<DATE>令和06年05月29日</DATE>
+		<DOCNO>202405301609357834</DOCNO>
+		<DATE>令和06年05月31日</DATE>
 		<TO>
 			<AFF><![CDATA[株式会社　S]]></AFF>
 			<NAME><![CDATA[大阪　次郎]]></NAME>
@@ -29,9 +29,9 @@
 			
 		</MAINTXT>
 		<APPENDIX>
-			<APPTITLE>健康保険被扶養者（異動）決定通知書</APPTITLE>
+			<APPTITLE>健康保険・厚生年金保険資格取得確認および標準報酬決定通知書</APPTITLE>
 			<APPTEXT></APPTEXT>
-			<DOCLINK REF="7170003.xml"></DOCLINK>
+			<DOCLINK REF="7100001.xml"></DOCLINK>
 		</APPENDIX>
 
 		<MAINTXT3>
@@ -58,17 +58,17 @@
 		<DOCLINK REF="kagami.xsl"></DOCLINK>
 	</APPENDIX>
 	<APPENDIX ID="mhlw.go.jp">
-		<DOCLINK REF="7170003.xml"></DOCLINK>
+		<DOCLINK REF="7100001.xml"></DOCLINK>
 	</APPENDIX>
 	<APPENDIX ID="mhlw.go.jp">
-		<DOCLINK REF="7170003.xsl"></DOCLINK>
+		<DOCLINK REF="7100001.xsl"></DOCLINK>
 	</APPENDIX>
 
-<Signature Id="mhlw.go.jp" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"></CanonicalizationMethod><SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"></SignatureMethod><Reference URI="#DOCBODY"><Transforms><Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"></Transform></Transforms><DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></DigestMethod><DigestValue>fS7j3RMdfh6ic4PajkrJ749LlpcMNJNcGR2PutXH7HQ=</DigestValue></Reference><Reference URI="kagami.xsl"><DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></DigestMethod><DigestValue>2dAair2g8IHVGrKefONh0O25iknZCvJTSETiCe8BNxw=</DigestValue></Reference><Reference URI="7170003.xml"><DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></DigestMethod><DigestValue>YlMnPp5h2XYpbqK6UeyeqXtfIqqO9qtVkeorXpPlhiY=</DigestValue></Reference><Reference URI="7170003.xsl"><DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></DigestMethod><DigestValue>j/aMul2Ofk5RADvxtk+oLTBni2HG47i21JbW1YAaWi4=</DigestValue></Reference></SignedInfo><SignatureValue>mns4T6A+SFNScI4pFuvFWZAcFp7NPSME2CWGNjwjFRCH+Hd/X66deTZiXojvliMRKwBPdKHu
-09/zp+oi2dJc3eIm/l8G+3lY+ZFY2d9AupVIcGn+4LhqNIGiMG6kYO49SWC2yLjDgVz1yU+e
-RkaYwrmMauYebgAg9dW2yPQONiRJJAKBOCOk7gxm6gPGc1MiPznjT5H3Lukgvl4qGgult47S
-nqknmlSoDKAPtTRNU0tzvRM5DHjFwQrtxvrcuDP4rLDmG3V3lFs9JAHZbqqIgC8bRVV56Nqh
-vrTdwki9wgks6p5sdrYBvvSWDcfSvMapIn+Ht5UU+CvAvkDbYK/4uA==</SignatureValue><KeyInfo><X509Data><X509Certificate>MIIFKTCCBBGgAwIBAgIPODU0NDkyMzg2NTQ3Nzk5MA0GCSqGSIb3DQEBCwUAMEYxCzAJBgNV
+<Signature Id="mhlw.go.jp" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"></CanonicalizationMethod><SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"></SignatureMethod><Reference URI="#DOCBODY"><Transforms><Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"></Transform></Transforms><DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></DigestMethod><DigestValue>OwMzWem6o5PFXeDSY/p8lNrlDf2msCZrZnO44V4O/CM=</DigestValue></Reference><Reference URI="kagami.xsl"><DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></DigestMethod><DigestValue>2dAair2g8IHVGrKefONh0O25iknZCvJTSETiCe8BNxw=</DigestValue></Reference><Reference URI="7100001.xml"><DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></DigestMethod><DigestValue>MWVnVoiDhJC4T3cNdnhmrHLEQnBtr3QqwHK4JfPVJZk=</DigestValue></Reference><Reference URI="7100001.xsl"><DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></DigestMethod><DigestValue>4c6pfLMgmlgMNnj0zECEP9uNuX0o0wcJomK6q23gst4=</DigestValue></Reference></SignedInfo><SignatureValue>YpFEv/74QF4Ax1sA6nKwC6GvMFZ2IFfv0R6gZ766BBbhUcO8aSwweiMUTSZvfqSiGfS1Sqpc
+ojMQebLzlYs/tLprkEvN4vHs8HIZASQUtl3G3+Dk9vQ+yxm4mBbrwwhmOF0QgVDosUV6G/d2
+ypscXz7amuv5bEpfjI6EZV2fnNKt5Hm1cSUJDt8MvlgiPz51jEDoAqGE9ix1cRMYif3LwhVm
+p8v82QTSzfZM8vZl4U5L4AcDFRwxWVaXbjURBn39moKRToMJhbej3qU3eDLmXm7ygFLY/bsI
+ST6ZV6SUaTrahL+Z9ocXCC7Xy4eg9zuEh0wm8BFmHtfoa6gr9qz1ug==</SignatureValue><KeyInfo><X509Data><X509Certificate>MIIFKTCCBBGgAwIBAgIPODU0NDkyMzg2NTQ3Nzk5MA0GCSqGSIb3DQEBCwUAMEYxCzAJBgNV
 BAYTAkpQMRwwGgYDVQQKDBNKYXBhbmVzZSBHb3Zlcm5tZW50MRkwFwYDVQQLDBBPZmZpY2lh
 bFN0YXR1c0NBMB4XDTIyMDcxMDE1MDAwMFoXDTI3MDcxMDE0NTk1OVowgYkxCzAJBgNVBAYT
 AkpQMRwwGgYDVQQKDBNKYXBhbmVzZSBHb3Zlcm5tZW50MS8wLQYDVQQLDCZNaW5pc3RyeSBv

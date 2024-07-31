@@ -79,12 +79,26 @@ Sub startCategorize()
     'ここはXMLではなく、何件フォルダコピーに成功したか、未整理フォルダにコピーしたかを最後にログ出力
     logFile.writeline "[INFO]   ：---------------------------------------------------"
     
-    '読取フォルダ配下の親フォルダの数（読取フォルダ配下にはXMLファイルは存在しない想定）
-    Dim folColl As Collection
-    Set folColl = New Collection
-    Call getFolColl(folColl, readPath)
+    '読取フォルダ配下のフォルダを1申請とみなし、処理を行う
+    Dim folder As Object
+    Set folder = fso.GetFolder(readPath)
     
-    For i = 1 To folColl.Count
+    'サブフォルダのコレクションを取得
+    Dim subFolders As Object
+    Set subFolders = folder.subFolders
+    
+    'サブフォルダの数を取得
+    Dim subFolderArray() As Object
+    ReDim subFolderArray(1 To folder.subFolders.Count)
+    
+    'サブフォルダを配列に変換
+    w = 1
+    For Each subFolder In subFolders
+        Set subFolderArray(w) = subFolder
+        w = w + 1
+    Next subFolder
+
+    For i = 1 To folder.subFolders.Count
     
         '項目名が無ければセット
         Call setItemName(ws)
@@ -92,19 +106,25 @@ Sub startCategorize()
         '一覧表削除
         Call deleteList
         
-        'フォルダ読取とXMLタグより情報取得
-        Call gfc.getFoldersAndFiles(folColl(i), 4, ws, ws2)
-        
-        '取得した情報からフォルダ整理
-        flg = ox.getXMLInfo(outputPath, ws, logFile, coll)
-        
-        '成功件数と未整理件数
-        If flg Then
-            OKcnt = OKcnt + 1
+        '公文書フォルダが3つ以上存在する場合
+        If subFolderArray(i).subFolders.Count > 2 Then
+            logFile.writeline "[ERROR]  ：処理フォルダ：" & subFolderArray(i).Path
+            logFile.writeline "[ERROR]  ：このフォルダには公文書フォルダが3つ以上存在するため、このフォルダの処理をスキップします。"
+            logFile.writeline "[INFO]   ：---------------------------------------------------"
         Else
-            NGcnt = NGcnt + 1
+            'フォルダ読取とXMLタグより情報取得
+            Call gfc.getFoldersAndFiles(subFolderArray(i), 4, ws, ws2)
+            
+            '取得した情報からフォルダ整理
+            flg = ox.getXMLInfo(outputPath, ws, logFile, coll)
+            
+            '成功件数と未整理件数
+            If flg Then
+                OKcnt = OKcnt + 1
+            Else
+                NGcnt = NGcnt + 1
+            End If
         End If
-    
     Next i
     
     '最後に一覧表削除
@@ -165,8 +185,8 @@ Sub getFolColl(folColl As Collection, readPath As String)
     Set folder = fso.GetFolder(readPath)
     isParent = False
     
-    If folder.SubFolders.Count > 0 Then
-        For Each fol In folder.SubFolders
+    If folder.subFolders.Count > 0 Then
+        For Each fol In folder.subFolders
             '再帰的呼び出し
             Call getFolColl(folColl, fol.Path)
         Next fol
@@ -257,3 +277,16 @@ Sub folderCheck(ws As Worksheet, readPath As String, outputPath As String)
     End If
 
 End Sub
+
+Function checkSubFolders(folder As Object)
+    
+    Dim flg As Boolean
+    flg = False
+    
+    'サブフォルダが3つ存在する場合はエラー
+    If folder.subFolder.Count > 2 Then
+        flg = True
+    End If
+    
+End Function
+

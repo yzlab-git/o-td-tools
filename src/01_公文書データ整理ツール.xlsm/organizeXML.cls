@@ -89,13 +89,23 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
     sufFlg = False
     
     '申請日付
-    Dim applicationDate As String
+    Dim applicationDate(1) As String
     '会社名
-    Dim companyName As String
+    Dim companyName(1) As String
     '対象者名
-    Dim applicntName As String
+    Dim applicntName(1) As String
     '申請種別
-    Dim applicationType As String
+    Dim applicationType(1) As String
+    
+    '値が異なるフラグ
+    Dim isNotSameAppDate As Boolean
+    Dim isNotSamecompName As Boolean
+    Dim isNotSameApplicant As Boolean
+    Dim isNotSameAppType As Boolean
+    isNotSameAppDate = False
+    isNotSamecompName = False
+    isNotSameApplicant = False
+    isNotSameAppType = False
 
     Set fso = CreateObject("Scripting.FileSystemObject")
     '未整理フォルダパス
@@ -111,42 +121,59 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
     For i = 1 To extractedData.Count
         data = extractedData(i)
         
-        'data(i)に値が存在していて、かつ変数に値がない場合はdataの値を設定
-        If data(0) <> "" And applicationDate = "" Then
-            applicationDate = data(0)
+        'data(i)に値が存在していて、かつ変数に値がない場合はdataの値を設定 + 公文書1と2のフォルダで値が異なる場合はエラーとする
+        If data(0) <> "" And applicationDate(0) = "" Then
+            applicationDate(0) = data(0)
+        ElseIf data(0) <> "" And data(0) <> applicationDate(0) Then
+            isNotSameAppDate = True
+            applicationDate(1) = data(0)
         End If
         
-        If data(1) <> "" And companyName = "" Then
-            companyName = data(1)
+        If data(1) <> "" And companyName(0) = "" Then
+            companyName(0) = data(1)
+        ElseIf data(1) <> "" And data(1) <> companyName(0) Then
+            isNotSamecompName = True
+            companyName(1) = data(1)
         End If
         
-        If data(2) <> "" And applicntName = "" Then
-            applicntName = data(2)
+        If data(2) <> "" And applicntName(0) = "" Then
+            applicntName(0) = data(2)
+        ElseIf data(2) <> "" And data(2) <> applicntName(0) Then
+            'isNotSameApplicant = True 　'現状は名前は要検討
+            applicntName(1) = data(2)
         End If
         
-        If data(3) <> "" And applicationType = "" Then
-            applicationType = data(3)
+        If data(3) <> "" And applicationType(0) = "" Then
+            applicationType(0) = data(3)
+        ElseIf data(3) <> "" And data(2) <> applicationType(0) Then
+            isNotSameAppType = True
+            applicationType(1) = data(3)
         End If
     Next i
     
     'XMLコピー
     Set srcFolder = fso.GetFolder(srcPath)
 
-    '対象者名は除き、3つの変数のうち1つでも値がない場合は、フォルダが作成できないためエラーとする
-    If applicationDate = "" Or companyName = "" Or applicationType = "" Then
+    '対象者名は除き、3つの変数のうち1つでも値がない場合は、フォルダが作成できないためエラーとする　＋　公文書1と2のXMLから取得した値が異なる場合もエラー
+    If applicationDate(0) = "" Or companyName(0) = "" Or applicationType(0) = "" Or isNotSameAppDate Or isNotSamecompName Or isNotSameAppType Then
         
         For Each file In srcFolder.Files
             If LCase(fso.GetExtensionName(file.Name)) = "xml" Then
                 
-                If applicationDate <> "" Then
-                
-                    month = Mid(applicationDate, 5, 2)
+                If applicationDate(0) <> "" Or applicationDate(1) <> "" Then
+                    If applicationDate(0) <> "" Then
+                        appDate = applicationDate(0)
+                        month = Mid(applicationDate(0), 5, 2)
+                    Else
+                        appDate = applicationDate(1)
+                        month = Mid(applicationDate(1), 5, 2)
+                    End If
                     If Left(month, 1) = "0" Then
                         month = Right(month, 1)
                     End If
                     
                     'コピー先パス
-                    searchPath = noInfoPath & "\" & Left(applicationDate, 4) & "年\" & month & "月\" & applicationDate & "\" & srcFolder.parentfolder.Name
+                    searchPath = noInfoPath & "\" & Left(appDate, 4) & "年\" & month & "月\" & appDate & "\" & srcFolder.parentfolder.Name
                     '無ければ作成する
                     Call createFolder(searchPath)
                 Else
@@ -155,46 +182,66 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
                 End If
                 copyFlg = True
                 fso.copyfolder file.parentfolder.parentfolder.Path, searchPath, True 'コピー時上書きする
-                srcPath = file.parentfolder.Path
+                srcPath = file.parentfolder.parentfolder.Path
             End If
         Next file
         
         If copyFlg Then
             logFile.writeline "[INFO]   ：コピー元             " & srcPath
             logFile.writeline "[INFO]   ：未整理フォルダに移動 " & searchPath
-            logFile.writeline "[INFO]   ：申請日付 [ " & applicationDate & " ]"
-            logFile.writeline "[INFO]   ：会社名   [ " & companyName & " ]"
-            logFile.writeline "[INFO]   ：申請種別 [ " & applicationType & " ]"
+            logFile.writeline "[INFO]   ：申請日付 [ " & applicationDate(0) & " ]"
+            If isNotSameAppDate Then
+                logFile.writeline "[INFO]   ：申請日付 [ " & applicationDate(1) & " ]"
+            End If
+            logFile.writeline "[INFO]   ：会社名   [ " & companyName(0) & " ]"
+            If isNotSamecompName Then
+                logFile.writeline "[INFO]   ：会社名   [ " & companyName(1) & " ]"
+            End If
+            logFile.writeline "[INFO]   ：申請種別 [ " & applicationType(0) & " ]"
+            If isNotSameAppType Then
+                logFile.writeline "[INFO]   ：申請種別 [ " & applicationType(1) & " ]"
+            End If
+            
             
             'エラー理由
-            If applicationDate = "" Then
+            If applicationDate(0) = "" Then
                 logFile.writeline "[ERROR]  ：申請日付の値が取得できませんでした。"
             End If
+            If isNotSameAppDate Then
+                logFile.writeline "[ERROR]  ：同じ申請で申請日付の値が異なっています。"
+            End If
             
-            If companyName = "" Then
+            If companyName(0) = "" Then
                 logFile.writeline "[ERROR]  ：会社名の値が取得できませんでした。"
             End If
+            If isNotSamecompName Then
+                logFile.writeline "[ERROR]  ：同じ申請で会社名の値が異なっています。"
+            End If
             
-            If applicationType = "" Then
+            If applicationType(0) = "" Then
                 logFile.writeline "[ERROR]  ：申請種別の値が取得できませんでした。"
             End If
+            If isNotSameAppType Then
+                logFile.writeline "[ERROR]  ：同じ申請で申請種別の値が異なっています。"
+            End If
+            
             logFile.writeline "[INFO]   ：---------------------------------------------------"
         End If
     Else
-        month = Mid(applicationDate, 5, 2)
+        month = Mid(applicationDate(0), 5, 2)
         If Left(month, 1) = "0" Then
             month = Right(month, 1)
         End If
         
         'コピー先パス
-        originPath = outputPath & "\" & Left(applicationDate, 4) & "年\" & month & "月\" & applicationDate & "\" & companyName & " " & applicntName & " " & applicationType
+        originPath = outputPath & "\" & Left(applicationDate(0), 4) & "年\" & month & "月\" & applicationDate(0) & "\" & companyName(0) & " " & applicntName(0) & " " & applicationType(0)
         
         'フォルダ名重複確認
         If Dir(originPath, vbDirectory) = "" Then
-            searchPath = originPath & "\" & srcFolder.parentfolder.Name
+            searchPath = originPath
         Else
             Do While Dir(searchPath, vbDirectory) <> ""
-                searchPath = originPath & "_" & suf & "\" & srcFolder.parentfolder.Name
+                searchPath = originPath & "_" & suf
                 suf = suf + 1
             Loop
             sufFlg = True
@@ -203,24 +250,22 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
         Call createFolder(searchPath)
         
         For Each file In srcFolder.Files
-            collKey = destPath & "\" & file.Name
+            collKey = srcFolder.parentfolder
             If LCase(fso.GetExtensionName(file.Name)) = "xml" Then
                 'ログ重複確認
                 If ExistsItem(coll, collKey, sufFlg) Then
                     copyFlg = True
                     coll.Add collKey
-                    'コピーの際は公文書1と2のフォルダを同時にコピーするので、公文書2のフォルダ精査時はコピーのみスキップする
-                    If InStr(srcFolder, "公文書2") = 0 Then
-                        fso.copyfolder file.parentfolder.parentfolder.Path, searchPath
-                    End If
-                    srcPath = file.parentfolder.Path
+                    'コピー
+                    fso.copyfolder file.parentfolder.parentfolder.Path, searchPath
+                    srcPath = file.parentfolder.parentfolder.Path
                 End If
             End If
         Next file
         If copyFlg Then
             logFile.writeline "[INFO]   ：コピー元   " & srcPath
             logFile.writeline "[INFO]   ：コピー成功 " & searchPath
-            If applicntName = "" Then
+            If applicntName(0) = "" Then
                 logFile.writeline "[CAUTION]：XMLから対象者名が取得できなかったので、対象者名無しで出力しています。"
             End If
             logFile.writeline "[INFO]   ：---------------------------------------------------"
