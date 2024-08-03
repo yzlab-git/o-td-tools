@@ -43,10 +43,24 @@ Sub startCategorize()
     Dim outputPath As String
     outputPath = ws.Cells(3, 5).Value
     
+    '出力フォルダ内にサブフォルダが存在する場合に削除するかどうか確認
+    Dim folder As Object
+    Set folder = fso.GetFolder(outputPath)
+    If folder.subFolders.Count > 0 Then
+        rs = MsgBox("出力フォルダ内のフォルダを全て消去しますか？", vbYesNo)
+            If rs = vbYes Then
+                fso.DeleteFolder outputPath & "\*"
+            End If
+    End If
+    Set folder = Nothing '以降の処理で再度folderを使用するので解放
+    
     'エラーチェック
     Call folderCheck(ws, readPath, outputPath)
     
     Application.ScreenUpdating = True 'テスト時はTrue、納品時はFalseにする
+    
+    'ボタン押下により処理開始なので問題ないとは思うが、念のためマクロシートを表示する（マクロシート以外が表示されているとエラーとなってしまう）
+    ws.Activate
     
     'パスに問題なければ色塗りつぶしを消す
     ws.Cells(2, 5).Interior.ColorIndex = xlNone
@@ -80,7 +94,6 @@ Sub startCategorize()
     logFile.writeline "[INFO]   ：---------------------------------------------------"
     
     '読取フォルダ配下のフォルダを1申請とみなし、処理を行う
-    Dim folder As Object
     Set folder = fso.GetFolder(readPath)
     
     'サブフォルダのコレクションを取得
@@ -277,16 +290,3 @@ Sub folderCheck(ws As Worksheet, readPath As String, outputPath As String)
     End If
 
 End Sub
-
-Function checkSubFolders(folder As Object)
-    
-    Dim flg As Boolean
-    flg = False
-    
-    'サブフォルダが3つ存在する場合はエラー
-    If folder.subFolder.Count > 2 Then
-        flg = True
-    End If
-    
-End Function
-

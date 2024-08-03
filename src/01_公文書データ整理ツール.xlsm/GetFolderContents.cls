@@ -17,7 +17,7 @@ Sub getFoldersAndFiles(folderPath As Object, wsRow As Long, ws As Worksheet, ws2
     Dim var As Variant
     
     Set fso = CreateObject("Scripting.FileSystemObject")
-    Set folder = fso.GetFolder(folderPath) 'ここのパスは数字の羅列フォルダ ex. C:\work\o-td-tools\資料\01_テスト\0604384629
+    Set folder = fso.GetFolder(folderPath) 'ここのパスは案件フォルダ名  ex.C:\work\o-td-tools\資料\01_テスト\0604384629
     hasXML = False
     
     'サブフォルダのコレクションを取得
@@ -160,12 +160,10 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long)
         ws.Cells(rowIndex, 9).Value = applicantName
         hasInfo = True
     End If
+    '様式IDが取得できていればIDリストと照合
     If applicationType <> "" Then
-        result = isInIdList(applicationType, idList)
-        If result <> "" Then
-            ws.Cells(rowIndex, 10).Value = result
-            hasInfo = True
-        End If
+        ws.Cells(rowIndex, 10).Value = isInIdList(applicationType, idList)
+        hasInfo = True
     End If
     
     If hasInfo = True Then
@@ -176,7 +174,7 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long)
     End If
 End Sub
 
-' 様式IDマスタシートから二次元配列として様式IDリストを取得 (ID, 略称)
+'様式IDマスタシートから二次元配列として様式IDリストを取得 (ID, 略称)
 Function getIdList() As Variant
     '様式IDの追加削除がある場合は「様式IDマスタ」シートを修正する
     Dim maxRow As Long
@@ -188,7 +186,7 @@ Function getIdList() As Variant
     maxRow = ws.Cells(Rows.Count, 2).End(xlUp).row
     
     'データ範囲の設定
-    Set DataRange = ws.Range(ws.Cells(2, 2), ws.Cells(maxRow, 3))
+    Set DataRange = ws.Range(ws.Cells(2, 1), ws.Cells(maxRow, 2))
     
     'データ範囲を配列に格納
     dataArray = DataRange.Value
@@ -198,7 +196,7 @@ Function getIdList() As Variant
 
 End Function
 
-'取得した様式IDの値がidListに存在しているかチェック、存在する場合は略称を返却
+'取得した様式IDの値がidListに存在しているかチェック　存在する場合は略称を返却、存在しない場合は略称不明を返却
 Function isInIdList(checkValue As String, arr As Variant) As String
     Dim i As Long
     
@@ -209,5 +207,5 @@ Function isInIdList(checkValue As String, arr As Variant) As String
         End If
     Next i
     
-    isInIdList = "'" & checkValue ' IDが見つからない場合は空文字を返す
+    isInIdList = "申請種別 略称不明"  'IDが見つからない場合
 End Function
