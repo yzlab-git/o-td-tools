@@ -20,7 +20,7 @@ Sub startCategorize()
     Dim ws As Worksheet
     Dim ws2 As Worksheet
     Set ws = Worksheets("マクロ")
-    Set ws2 = Worksheets("様式IDマスタ")
+    Set ws2 = Worksheets("社会保険_様式IDマスタ")
     
     Dim fso As Object
     Set fso = CreateObject("Scripting.FileSystemObject")
@@ -43,6 +43,9 @@ Sub startCategorize()
     Dim outputPath As String
     outputPath = ws.Cells(3, 5).Value
     
+    'エラーチェック
+    Call folderCheck(ws, readPath, outputPath)
+    
     '出力フォルダ内にサブフォルダが存在する場合に削除するかどうか確認
     Dim folder As Object
     Set folder = fso.GetFolder(outputPath)
@@ -53,9 +56,6 @@ Sub startCategorize()
             End If
     End If
     Set folder = Nothing '以降の処理で再度folderを使用するので解放
-    
-    'エラーチェック
-    Call folderCheck(ws, readPath, outputPath)
     
     Application.ScreenUpdating = True 'テスト時はTrue、納品時はFalseにする
     
@@ -262,10 +262,15 @@ Sub getFolderPath(i As Long)
 End Sub
 
 Sub folderCheck(ws As Worksheet, readPath As String, outputPath As String)
-
-    '選択したパスが同じ場合はエラー
-    If readPath = outputPath Then
-        MsgBox "読取フォルダと出力フォルダのパスが同じです。" & vbLf & "処理を中断します。"
+    
+    '未入力はエラー
+    If readPath = "" Then
+        MsgBox "読取したいフォルダのパスを入力してください。" & vbLf & "処理を中断します。"
+        ws.Cells(2, 5).Interior.ColorIndex = 6 'フォルダパスのセルを黄色ぬりつぶし
+        End
+    ElseIf outputPath = "" Then
+        MsgBox "出力したいフォルダのパスを入力してください。" & vbLf & "処理を中断します。"
+        ws.Cells(3, 5).Interior.ColorIndex = 6 'フォルダパスのセルを黄色ぬりつぶし
         End
     End If
     
@@ -278,14 +283,9 @@ Sub folderCheck(ws As Worksheet, readPath As String, outputPath As String)
         End
     End If
     
-    '未入力はエラー
-    If readPath = "" Then
-        MsgBox "読取したいフォルダのパスを入力してください。" & vbLf & "処理を中断します。"
-        ws.Cells(2, 5).Interior.ColorIndex = 6 'フォルダパスのセルを黄色ぬりつぶし
-        End
-    ElseIf outputPath = "" Then
-        MsgBox "出力したいフォルダのパスを入力してください。" & vbLf & "処理を中断します。"
-        ws.Cells(3, 5).Interior.ColorIndex = 6 'フォルダパスのセルを黄色ぬりつぶし
+    '選択したパスが同じ場合はエラー
+    If readPath = outputPath Then
+        MsgBox "読取フォルダと出力フォルダのパスが同じです。" & vbLf & "処理を中断します。"
         End
     End If
 

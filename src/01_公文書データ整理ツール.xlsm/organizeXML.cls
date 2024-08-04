@@ -93,7 +93,7 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
     '会社名
     Dim companyName(1) As String
     '対象者名
-    Dim applicntName(1) As String
+    Dim applicantName(1) As String
     '申請種別
     Dim applicationType(1) As String
     
@@ -140,11 +140,11 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
             companyName(1) = data(1)
         End If
         
-        If data(2) <> "" And applicntName(0) = "" Then
-            applicntName(0) = data(2)
-        ElseIf data(2) <> "" And data(2) <> applicntName(0) Then
+        If data(2) <> "" And applicantName(0) = "" Then
+            applicantName(0) = data(2)
+        ElseIf data(2) <> "" And data(2) <> applicantName(0) Then
             'isNotSameApplicant = True 　'現状は名前は要検討
-            applicntName(1) = data(2)
+            applicantName(1) = data(2)
         End If
         
         If data(3) <> "" And applicationType(0) = "" Then
@@ -252,11 +252,30 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
         End If
         
         '対象者名の有無でフォルダ名分岐
+        '対象者なしの場合
         Dim XMLInfoFolderName As String
-        If applicntName(0) = "" Then
+        If applicantName(0) = "" Then
             XMLInfoFolderName = companyName(0) & "_" & applicationType(0)
         Else
-            XMLInfoFolderName = companyName(0) & "_" & applicntName(0) & "_" & applicationType(0)
+            '対象者がXMLから複数取得できた場合
+            If Not (applicantName(0) <> "" And applicantName(1) = "") Then
+                Dim appNameLong(1) As Long
+                
+                If InStr(applicantName(0), "名分") > 0 And InStr(applicantName(1), "名分") = 0 Then
+                    appNameLong(0) = CInt(Replace(applicantName(0), "名分", ""))
+                    applicantName(0) = appNameLong(0) + 1 & "名分"
+                ElseIf InStr(applicantName(0), "名分") = 0 And InStr(applicantName(1), "名分") > 0 Then
+                    appNameLong(1) = CInt(Replace(applicantName(1), "名分", ""))
+                    applicantName(0) = 1 + appNameLong(1) & "名分"
+                ElseIf InStr(applicantName(0), "名分") > 0 And InStr(applicantName(1), "名分") > 0 Then
+                    appNameLong(0) = CInt(Replace(applicantName(0), "名分", ""))
+                    appNameLong(1) = CInt(Replace(applicantName(1), "名分", ""))
+                    applicantName(0) = appNameLong(0) + appNameLong(1) & "名分"
+                ElseIf InStr(applicantName(0), "名分") = 0 And InStr(applicantName(1), "名分") = 0 Then
+                    applicantName(0) = "2名分"
+                End If
+            End If
+            XMLInfoFolderName = companyName(0) & "_" & applicantName(0) & "_" & applicationType(0)
         End If
         'コピー先パス
         originPath = outputPath & "\" & Left(applicationDate(0), 4) & "年\" & month & "月\" & applicationDate(0) & "\" & XMLInfoFolderName
@@ -290,7 +309,7 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
         If copyFlg Then
             logFile.writeline "[INFO]   ：コピー元   " & srcPath
             logFile.writeline "[INFO]   ：コピー成功 " & searchPath
-            If applicntName(0) = "" Then
+            If applicantName(0) = "" Then
                 logFile.writeline "[CAUTION]：XMLから対象者名が取得できなかったので、対象者名無しで出力しています。"
             End If
             logFile.writeline "[INFO]   ：---------------------------------------------------"
