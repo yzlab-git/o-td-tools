@@ -162,6 +162,12 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long, socialIns
         regexA.Pattern = ".*事業所名称$"
         regexA.Global = True
         
+        '船舶用 会社名は<～事業所名称x船舶所有者氏名>となっているタグから取得する
+        Dim regexJ As Object
+        Set regexJ = CreateObject("VBScript.RegExp")
+        regexJ.Pattern = ".*事業所名称x船舶所有者氏名$"
+        regexJ.Global = True
+        
         '対象者人数
         Dim appCnt As Long
         appCnt = 0
@@ -203,11 +209,14 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long, socialIns
         
         ' 特定のパターンに一致する値を検索
         For Each node In nodes
-            '会社名
-            If regexA.Test(node.tagName) Then
-                companyName = node.Text
+            '会社名(最初に取得できたタグから)
+            If companyName = "" Then
+                If regexA.Test(node.tagName) Then
+                    companyName = node.Text
+                ElseIf regexJ.Test(node.tagName) Then
+                    companyName = node.Text
+                End If
             End If
-            
             '対象者名
             If regexB.Test(node.tagName) Then
                 BName = node.Text
@@ -293,6 +302,10 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long, socialIns
                 
                 If Len(appMonth) = 1 Then
                     appMonth = "0" & appMonth
+                End If
+                
+                If Len(appDay) = 1 Then
+                    appDay = "0" & appDay
                 End If
                 
                 applicationDate = appYear & appMonth & appDay
