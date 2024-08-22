@@ -107,7 +107,7 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
     isNotSameApplicant = False
     isNotSameAppType = False
     
-    '取得した申請種別がNotFoundinIDListのみフラグ
+    '取得した申請種別がisIDNotFoundのみフラグ
     Dim isIDNotFound As Boolean
     isIDNotFound = False
 
@@ -125,7 +125,7 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
     For i = 1 To extractedData.Count
         data = extractedData(i)
         
-        'data(i)に値が存在していて、かつ変数に値がない場合はdataの値を設定 + 公文書1と2のフォルダで値が異なる場合はエラーとする
+        'data(i)に値が存在していて、かつ変数に値がない場合はdataの値を設定 + 公文書1と2のフォルダで値が異なる場合はエラーとする(事業所名称は最初に取得したほう（data(0)）の値にするので除く)
         If data(0) <> "" And applicationDate(0) = "" Then
             applicationDate(0) = data(0)
         ElseIf data(0) <> "" And data(0) <> applicationDate(0) Then
@@ -136,7 +136,7 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
         If data(1) <> "" And companyName(0) = "" Then
             companyName(0) = data(1)
         ElseIf data(1) <> "" And data(1) <> companyName(0) Then
-            isNotSameCompName = True
+            'isNotSameCompName = True
             companyName(1) = data(1)
         End If
         
@@ -163,7 +163,7 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
     'XMLコピー
     Set srcFolder = fso.GetFolder(srcPath)
 
-    '対象者名は除き、3つの変数のうち1つでも値がない場合は、フォルダが作成できないためエラーとする + 公文書1と2のXMLから取得した値が異なる場合もエラー + 申請種別が略称不明のみもエラー
+    '対象者名は除き、3つの変数のうち1つでも値がない場合は、フォルダが作成できないためエラーとする + 公文書1と2のXMLから取得した値が異なる場合もエラー(事業所名称は除く) + 申請種別が略称不明のみもエラー
     If applicationDate(0) = "" Or companyName(0) = "" Or applicationType(0) = "" Or isNotSameAppDate Or isNotSameCompName Or isNotSameAppType Or isIDNotFound Then
         
         For Each file In srcFolder.Files
