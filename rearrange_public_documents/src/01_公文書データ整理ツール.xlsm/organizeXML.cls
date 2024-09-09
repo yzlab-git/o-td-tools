@@ -164,7 +164,8 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
     Set srcFolder = fso.GetFolder(srcPath)
 
     '対象者名は除き、3つの変数のうち1つでも値がない場合は、フォルダが作成できないためエラーとする + 公文書1と2のXMLから取得した値が異なる場合もエラー(事業所名称は除く) + 申請種別が略称不明のみもエラー
-    If applicationDate(0) = "" Or companyName(0) = "" Or applicationType(0) = "" Or isNotSameAppDate Or isNotSameCompName Or isNotSameAppType Or isIDNotFound Then
+    '対象者名が「フェイス」の場合はエラー
+    If applicationDate(0) = "" Or companyName(0) = "" Or applicationType(0) = "" Or applicantName(0) = "Faith経営労務事務所" Or isNotSameAppDate Or isNotSameCompName Or isNotSameAppType Or isIDNotFound Then
         
         For Each file In srcFolder.Files
             If LCase(fso.GetExtensionName(file.Name)) = "xml" Then
@@ -202,6 +203,10 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
             If isNotSameAppDate Then
                 logFile.writeline "[INFO]   ：申請日付 [ " & applicationDate(1) & " ]"
             End If
+            If applicantName(0) = "Faith経営労務事務所" Then
+                logFile.writeline "[INFO]   ：対象者名 [ " & applicantName(0) & " ]"
+            End If
+            
             logFile.writeline "[INFO]   ：会社名   [ " & companyName(0) & " ]"
             If isNotSameCompName Then
                 logFile.writeline "[INFO]   ：会社名   [ " & companyName(1) & " ]"
@@ -223,6 +228,10 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
             End If
             If isNotSameAppDate Then
                 logFile.writeline "[ERROR]  ：同じ申請で申請日付が異なっています。"
+            End If
+            
+            If applicantName(0) = "Faith経営労務事務所" Then
+                logFile.writeline "[ERROR]  ：対象者名がFaith経営労務事務所だったため、未整理フォルダに出力しました。"
             End If
             
             If companyName(0) = "" Then
@@ -252,9 +261,9 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
         End If
         
         '対象者名の有無でフォルダ名分岐
-        '対象者なしの場合
+        '対象者なし、もしくは雇用保険の場合
         Dim XMLInfoFolderName As String
-        If applicantName(0) = "" Then
+        If applicantName(0) = "" Or applicantName(0) = "雇用保険のため、対象者名なし" Then
             XMLInfoFolderName = companyName(0) & "_" & applicationType(0)
         Else
             '対象者がXMLから複数取得できた場合
@@ -311,6 +320,8 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
             logFile.writeline "[INFO]   ：コピー成功 " & searchPath
             If applicantName(0) = "" Then
                 logFile.writeline "[CAUTION]：XMLから対象者名が取得できなかったので、対象者名無しで出力しています。"
+            ElseIf applicantName(0) = "雇用保険のため、対象者名なし" Then
+                logFile.writeline "[CAUTION]：申請種別が雇用保険のため、対象者名無しで出力しています。"
             End If
             logFile.writeline "[INFO]   ：---------------------------------------------------"
             OKflg = True

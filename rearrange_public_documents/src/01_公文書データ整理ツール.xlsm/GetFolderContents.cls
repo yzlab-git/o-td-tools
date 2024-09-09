@@ -120,12 +120,23 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long, socialIns
     Dim nodes As Object
     Dim node As Object
     
-    '雇用保険判定
+    '雇用保険判定 雇用保険の場合、NAMEタグは事業主名を示しているため、必ずしも対象者名とはならない。対象者名はなしで整理する方針。NAMEタグで取得した文字列が「Faith経営労務事務所」の場合はエラーとする。
     If InStr(docNo, "到達番号：") > 0 And affiliateName <> "" And titleName <> "" And empInsAppDate <> "" Then
         
         ws.Cells(rowIndex, 8).Value = affiliateName
-        ws.Cells(rowIndex, 9).Value = employeeName
         ws.Cells(rowIndex, 10).Value = isInIdList(titleName, employInsList)
+        
+        'NAMEタグが「Faith経営労務事務所」かどうかのフラグ
+        Dim isFaithFlg As Boolean
+        isFaithFlg = False
+        
+        'NAMEタグが「Faith経営労務事務所」かチェック
+        isFaithFlg = checkFaith(isFaithFlg, employeeName)
+        If isFaithFlg Then
+            ws.Cells(rowIndex, 9).Value = "Faith経営労務事務所"
+        Else
+            ws.Cells(rowIndex, 9).Value = "雇用保険のため、対象者名なし"
+        End If
         
         Dim regex As Object
         Set regex = CreateObject("VBScript.RegExp")
@@ -406,6 +417,27 @@ Function isInIdList(checkValue As String, arr As Variant) As String
     Next i
     
     isInIdList = "申請種別 略称不明"  'IDが見つからない場合
+End Function
+
+'NAMEタグが「Faith経営労務事務所」かどうか確認メソッド
+Function checkFaith(flg As Boolean, nameStr As String)
+    
+    '空白を削除
+    nameStr = Replace(Trim(nameStr), " ", "")
+    nameStr = Replace(nameStr, "　", "")
+    
+    '大文字に変換
+    nameStr = UCase(nameStr)
+    
+    '全角に変換
+    nameStr = StrConv(nameStr, vbWide)
+    
+    If InStr(nameStr, "ＦＡＩＴＨ経営労務事務所") > 0 Then
+        checkFaith = True
+    Else
+        checkFaith = False
+    End If
+    
 End Function
 
 'もしかしたら後で急に使うことになるかもしれないので、残しておく
