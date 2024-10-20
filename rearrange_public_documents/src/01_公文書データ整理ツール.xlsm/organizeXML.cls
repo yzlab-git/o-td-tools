@@ -13,7 +13,7 @@ Function getXMLInfo(outputPath As String, ws As Worksheet, logFile As Object, co
     Dim regexA As Object
     Dim XMLPath As String
     Dim docPath As String
-    Dim srcPath As Variant '検索用パス
+    Dim srcPath As Variant                       '検索用パス
     Dim docPaths As Range
     Dim extractedData As Collection
     Dim matches As Object
@@ -53,7 +53,8 @@ Function getXMLInfo(outputPath As String, ws As Worksheet, logFile As Object, co
             
             'パス一覧からdocPathが含まれるパスを取得し、コレクションに格納
             If InStr(XMLPath, docPath) > 0 And LCase(Right(XMLPath, 4)) = ".xml" Then
-                data = Array(ws.Cells(i, 7).Value, ws.Cells(i, 8).Value, ws.Cells(i, 9).Value, ws.Cells(i, 10).Value)
+                data = Array(ws.Cells(i, 7).Value, ws.Cells(i, 8).Value, ws.Cells(i, 9).Value, ws.Cells(i, 10).Value, ws.Cells(i, 11).Value, _
+                             ws.Cells(i, 12).Value, ws.Cells(i, 13).Value, ws.Cells(i, 14).Value, ws.Cells(i, 15).Value)
                 extractedData.Add data
             End If
         End If
@@ -65,267 +66,226 @@ End Function
 
 'XMLファイルコピー処理
 Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Collection, srcPath As String, logFile As Object, coll As Collection)
-    Dim searchPath As String
     Dim data As Variant
     Dim fso As Object
     Dim srcFolder As Object
     Dim destFolder As Object
-    Dim file As Object
-    Dim month As String
     Dim copyFlg As Boolean
     Dim collKey As String
     Dim keyExists As Boolean
     Dim fol As Object
+    Dim destPath As String
+    Dim customPath As String
     '実行件数確認用
     Dim OKflg As Boolean
-    'フォルダ重複（suffix）確認用
-    Dim originPath As String
-    originPath = ""
-    'フォルダ名が重複した場合のsuffix
-    Dim suf As Long
-    suf = 1
-    'ディレクトリにsuffixを付与したフラグ
-    Dim sufFlg As Boolean
-    sufFlg = False
-    
-    '申請日付
-    Dim applicationDate(1) As String
-    '会社名
-    Dim companyName(1) As String
-    '対象者名
-    Dim applicantName(1) As String
-    '申請種別
-    Dim applicationType(1) As String
     
     '値が異なるフラグ
     Dim isNotSameAppDate As Boolean
-    Dim isNotSameCompName As Boolean
-    Dim isNotSameApplicant As Boolean
-    Dim isNotSameAppType As Boolean
     isNotSameAppDate = False
-    isNotSameCompName = False
-    isNotSameApplicant = False
-    isNotSameAppType = False
+    '未整理フラグ
+    Dim isMiseiri As Boolean
+    isMiseiri = False
     
-    '取得した申請種別がisIDNotFoundのみフラグ
-    Dim isIDNotFound As Boolean
-    isIDNotFound = False
-
-    Set fso = CreateObject("Scripting.FileSystemObject")
-    '未整理フォルダパス
-    noInfoPath = outputPath & "\未整理"
-    'すでにファイル整理済みかどうか
-    copyFlg = False
-    'フォルダ作成確認用 → originPathで確認した後、searchPathに代入してフォルダ作成
-    searchPath = ""
-    month = ""
+    '申請日付：XMLから取得するので、複数取得する可能性あり（STEP1と同じ）
+    Dim applicationDate(1) As String
+    '事業者名
+    Dim companyName As String
+    '対象者名
+    Dim applicantName As String
+    '申請種別
+    Dim applicationType As String
+    '手続名
+    Dim applicationName As String
+    '状況
+    Dim situation As String
+    '審査完了日時
+    Dim shinsaKanryoDate As String
+    '手続完了日時
+    Dim tetsuzukiKanryoDate As String
+    'da_comment.txt存在フラグ
+    Dim isDaComment As Boolean
+    isDaComment = False
     'コピー成功したらTrue
     OKflg = False
     
+    'XMLコピー
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set srcFolder = fso.GetFolder(srcPath)
+    
+    'XMLとtxtから抽出した値を変数に格納
     For i = 1 To extractedData.Count
         data = extractedData(i)
-        
-        'data(i)に値が存在していて、かつ変数に値がない場合はdataの値を設定 + 公文書1と2のフォルダで値が異なる場合はエラーとする(事業所名称は最初に取得したほう（data(0)）の値にするので除く)
+
+        'data(i)に値が存在していて、かつ変数に値がない場合はdataの値を設定 + 公文書1と2のフォルダで値が異なる場合はエラーとする
         If data(0) <> "" And applicationDate(0) = "" Then
             applicationDate(0) = data(0)
         ElseIf data(0) <> "" And data(0) <> applicationDate(0) Then
             isNotSameAppDate = True
             applicationDate(1) = data(0)
         End If
-        
-        If data(1) <> "" And companyName(0) = "" Then
-            companyName(0) = data(1)
-        ElseIf data(1) <> "" And data(1) <> companyName(0) Then
-            'isNotSameCompName = True
-            companyName(1) = data(1)
+        If applicationType = "" Then
+            applicationType = data(1)
         End If
-        
-        If data(2) <> "" And applicantName(0) = "" Then
-            applicantName(0) = data(2)
-        ElseIf data(2) <> "" And data(2) <> applicantName(0) Then
-            'isNotSameApplicant = True 　'現状は名前は要検討
-            applicantName(1) = data(2)
+        If applicationName = "" Then
+            applicationName = data(2)
         End If
-        
-        If data(3) <> "" And applicationType(0) = "" Then
-            applicationType(0) = data(3)
-        ElseIf data(3) <> "" And data(3) <> applicationType(0) Then 'applicationType(0)と異なる値であればapplicationType(1)に代入
-            isNotSameAppType = True
-            applicationType(1) = data(3)
+        If companyName = "" Then
+            companyName = data(3)
+        End If
+        If applicantName = "" Then
+            applicantName = data(4)
+        End If
+        If situation = "" Then
+            situation = data(5)
+        End If
+        If shinsaKanryoDate = "" Then
+            shinsaKanryoDate = data(6)
+        End If
+        If tetsuzukiKanryoDate = "" Then
+            tetsuzukiKanryoDate = data(7)
+        End If
+        If data(8) <> "" Then
+            isDaComment = True
         End If
     Next i
     
-    '略称不明 略称不明（様式IDリストに該当しない様式IDのみ）の場合はフラグを立てる
-    If applicationType(0) = "申請種別 略称不明" And applicationType(1) = "" Then
-        isIDNotFound = True
+    'フォルダ作成：申請日_種別手続名_事業者名_対象者名
+    If applicantName = "" Then
+        customPath = applicationDate(0) & "_" & applicationType & applicationName & "_" & companyName
+    Else
+        customPath = applicationDate(0) & "_" & applicationType & applicationName & "_" & companyName & "_" & applicantName
+    End If
+        
+    '以下case分岐の処理実施フラグ
+    Dim caseFlg As Boolean
+    caseFlg = False
+    
+    'STEP1未整理パターン：各項目が取得できない場合はエラーだが、対象者名なしは除く（STEP1と同じ）/ 対象者名がフェイス / 2つのXMLから取得した申請日付が異なる
+    If applicationDate(0) = "" Or companyName = "" Or applicantName = "Faith経営労務事務所" Or isNotSameAppDate = True Then
+        destPath = createFolder(outputPath, "未整理", customPath, applicationDate(0)) & "\" & srcFolder.parentfolder.Name '未整理は案件フォルダの作成が必要
+        isMiseiri = True
+    Else
+        'da_comment.txtの有無で分岐
+        If Not isDaComment Then
+            Select Case situation
+            Case "手続終了"
+                If applicationName = "算定" Then
+                    '「算定」フォルダに整理
+                    destPath = createFolder(outputPath, applicationName, customPath, applicationDate(0))
+                    caseFlg = True
+                ElseIf shinsaKanryoDate = "" Then
+                    '「返戻・エラー」フォルダに整理③：状況が「手続終了」なのに、審査完了日時が入っていない
+                    destPath = createFolder(outputPath, "返戻・エラー", customPath, applicationDate(0))
+                    caseFlg = True
+                Else
+                    '「手続完了分」フォルダに整理
+                    destPath = createFolder(outputPath, "手続完了分", customPath, applicationDate(0))
+                    caseFlg = True
+                End If
+                    
+            Case "審査終了"
+                If applicationName = "算定" Then
+                    '「算定」フォルダに整理
+                    destPath = createFolder(outputPath, applicationName, customPath, applicationDate(0))
+                    caseFlg = True
+                ElseIf tetsuzukiKanryoDate <> "" Then
+                    '「返戻・エラー」フォルダに整理④：手続完了日時が入っているのに、状況が「審査終了」
+                    destPath = createFolder(outputPath, "返戻・エラー", customPath, applicationDate(0))
+                    caseFlg = True
+                Else
+                    '「審査完了分」フォルダに整理
+                    destPath = createFolder(outputPath, "審査完了分", customPath, applicationDate(0))
+                    caseFlg = True
+                End If
+                    
+            Case "審査中"
+                '「審査中」フォルダに整理
+                destPath = createFolder(outputPath, situation, customPath, applicationDate(0))
+                caseFlg = True
+                    
+            Case "送信待機", "到達", "取り下げ済"
+                '「その他」フォルダに整理
+                destPath = createFolder(outputPath, "その他", customPath, applicationDate(0))
+                caseFlg = True
+                    
+            Case "返戻", "エラー"
+                '「返戻・エラー」フォルダに整理①：da_info.txtの「状況」が「返戻」または「エラー」
+                destPath = createFolder(outputPath, "返戻・エラー", customPath, applicationDate(0))
+                caseFlg = True
+            
+            End Select
+            
+        Else
+            '「返戻・エラー」フォルダに整理②：da_comment.txtがある
+            destPath = createFolder(outputPath, "返戻・エラー", customPath, applicationDate(0))
+        End If
+        
+        '上記どれにも該当しない場合（STEP2未整理パターン）：「未整理」フォルダに整理
+        If caseFlg = False And isDaComment = False Then
+            destPath = createFolder(outputPath, "未整理", customPath, applicationDate(0)) & "\" & srcFolder.parentfolder.Name '未整理は案件フォルダの作成が必要
+            isMiseiriStep2 = True
+        End If
     End If
     
-    'XMLコピー
-    Set srcFolder = fso.GetFolder(srcPath)
-
-    '対象者名は除き、3つの変数のうち1つでも値がない場合は、フォルダが作成できないためエラーとする + 公文書1と2のXMLから取得した値が異なる場合もエラー(事業所名称は除く) + 申請種別が略称不明のみもエラー
-    '対象者名が「フェイス」の場合はエラー
-    If applicationDate(0) = "" Or companyName(0) = "" Or applicationType(0) = "" Or applicantName(0) = "Faith経営労務事務所" Or isNotSameAppDate Or isNotSameCompName Or isNotSameAppType Or isIDNotFound Then
-        
-        For Each file In srcFolder.Files
-            If LCase(fso.GetExtensionName(file.Name)) = "xml" Then
-                
-                If applicationDate(0) <> "" Or applicationDate(1) <> "" Then
-                    If applicationDate(0) <> "" Then
-                        appDate = applicationDate(0)
-                        month = Mid(applicationDate(0), 5, 2)
-                    Else
-                        appDate = applicationDate(1)
-                        month = Mid(applicationDate(1), 5, 2)
-                    End If
-                    If Left(month, 1) = "0" Then
-                        month = Right(month, 1)
-                    End If
-                    
-                    'コピー先パス
-                    searchPath = noInfoPath & "\" & Left(appDate, 4) & "年\" & month & "月\" & appDate & "\" & srcFolder.parentfolder.Name
-                    '無ければ作成する
-                    Call createFolder(searchPath)
-                Else
-                    'コピー先パス（日付が取得できなければ未整理フォルダ直下に移動する）
-                    searchPath = noInfoPath & "\" & srcFolder.parentfolder.Name
-                End If
-                copyFlg = True
-                fso.copyfolder file.parentfolder.parentfolder.Path, searchPath, True 'コピー時上書きする
-                srcPath = file.parentfolder.parentfolder.Path
-            End If
-        Next file
-        
-        If copyFlg Then
-            logFile.writeline "[INFO]   ：コピー元             " & srcPath
-            logFile.writeline "[INFO]   ：未整理フォルダに移動 " & searchPath
-            logFile.writeline "[INFO]   ：申請日付 [ " & applicationDate(0) & " ]"
-            If isNotSameAppDate Then
-                logFile.writeline "[INFO]   ：申請日付 [ " & applicationDate(1) & " ]"
-            End If
-            If applicantName(0) = "Faith経営労務事務所" Then
-                logFile.writeline "[INFO]   ：対象者名 [ " & applicantName(0) & " ]"
-            End If
-            
-            logFile.writeline "[INFO]   ：会社名   [ " & companyName(0) & " ]"
-            If isNotSameCompName Then
-                logFile.writeline "[INFO]   ：会社名   [ " & companyName(1) & " ]"
-            End If
-            If Not isIDNotFound Then
-                '様式IDリストに存在する様式IDを取得できたが2つのXMLで異なっていた、もしくは様式ID自体が取得できなかったパターン
-                logFile.writeline "[INFO]   ：申請種別 [ " & applicationType(0) & " ]"
-                If isNotSameAppType Then
-                    logFile.writeline "[INFO]   ：申請種別 [ " & applicationType(1) & " ]"
-                End If
-            Else
-                '取得した様式IDが様式IDリストに存在しないものしか取得できなかったパターン
-                logFile.writeline "[INFO]   ：申請種別 [ 申請種別 略称不明 ]"
-            End If
-            
-            'エラー理由
-            If applicationDate(0) = "" Then
-                logFile.writeline "[ERROR]  ：申請日付が取得できませんでした。"
-            End If
-            If isNotSameAppDate Then
-                logFile.writeline "[ERROR]  ：同じ申請で申請日付が異なっています。"
-            End If
-            
-            If applicantName(0) = "Faith経営労務事務所" Then
-                logFile.writeline "[ERROR]  ：対象者名がFaith経営労務事務所だったため、未整理フォルダに出力しました。"
-            End If
-            
-            If companyName(0) = "" Then
-                logFile.writeline "[ERROR]  ：会社名が取得できませんでした。"
-            End If
-            If isNotSameCompName Then
-                logFile.writeline "[ERROR]  ：同じ申請で会社名が異なっています。"
-            End If
-            
-            If Not isIDNotFound Then
-                If applicationType(0) = "" Then
-                    logFile.writeline "[ERROR]  ：申請種別が取得できませんでした。"
-                End If
-                If isNotSameAppType Then
-                    logFile.writeline "[ERROR]  ：同じ申請で申請種別が異なっています。"
-                End If
-            Else
-                logFile.writeline "[ERROR]  ：様式IDマスタシートに存在しない様式IDしか取得できませんでした。"
-            End If
-            
-            logFile.writeline "[INFO]   ：---------------------------------------------------"
+    'コピー 上書きする
+    srcPath = srcFolder.parentfolder.path
+    fso.copyfolder srcPath, destPath, True
+    
+    'ログ
+    If isMiseiri Or isMiseiriStep2 Then
+        logFile.writeline "[INFO]   ：コピー元             " & srcPath
+        logFile.writeline "[INFO]   ：未整理フォルダに移動 " & destPath
+        If applicationDate(0) = "" Then
+            logFile.writeline "[INFO]   ：申請日付     [ " & applicationDate(0) & " ]"
         End If
+        If isNotSameAppDate Then
+            logFile.writeline "[INFO]   ：申請日付     [ " & applicationDate(0) & " ]"
+            logFile.writeline "[INFO]   ：申請日付     [ " & applicationDate(1) & " ]"
+        End If
+        If applicationType = "" Then
+            logFile.writeline "[INFO]   ：種別         [ " & applicationType & " ]"
+        End If
+        If applicationName = "" Then
+            logFile.writeline "[INFO]   ：手続名       [ " & applicationName & " ]"
+        End If
+        If companyName = "" Then
+            logFile.writeline "[INFO]   ：事業者名     [ " & companyName & " ]"
+        End If
+        If applicantName = "Faith経営労務事務所" Then
+            logFile.writeline "[INFO]   ：対象者名     [ " & applicantName & " ]"
+        End If
+        'エラー理由
+        If applicationDate(0) = "" Then
+            logFile.writeline "[ERROR]  ：申請日付が取得できませんでした。"
+        End If
+        If isNotSameAppDate Then
+            logFile.writeline "[ERROR]  ：同じ申請で申請日付が異なっています。"
+        End If
+        If applicationType = "" Then
+            logFile.writeline "[ERROR]  ：種別が取得できませんでした。"
+        End If
+        If applicationName = "" Then
+            logFile.writeline "[ERROR]  ：手続名が取得できませんでした。"
+        End If
+        If companyName = "" Then
+            logFile.writeline "[ERROR]  ：事業者名が取得できませんでした。"
+        End If
+        If applicantName = "Faith経営労務事務所" Then
+            logFile.writeline "[ERROR]  ：対象者名がFaith経営労務事務所でした。"
+        End If
+        If isMiseiriStep2 Then
+            logFile.writeline "[ERROR]  ：どの条件にも当てはまりませんでした。"
+        End If
+        logFile.writeline "[INFO]   ：---------------------------------------------------"
+        OKflg = False
     Else
-        month = Mid(applicationDate(0), 5, 2)
-        If Left(month, 1) = "0" Then
-            month = Right(month, 1)
+        logFile.writeline "[INFO]   ：コピー元   " & srcPath
+        logFile.writeline "[INFO]   ：コピー成功 " & destPath
+        If applicantName = "" Then
+            logFile.writeline "[CAUTION]：対象者名が取得できなかったので、対象者名無しで出力しています。"
         End If
-        
-        '対象者名の有無でフォルダ名分岐
-        '対象者なし、もしくは雇用保険の場合
-        Dim XMLInfoFolderName As String
-        If applicantName(0) = "" Or applicantName(0) = "雇用保険のため、対象者名なし" Then
-            XMLInfoFolderName = companyName(0) & "_" & applicationType(0)
-        Else
-            '対象者がXMLから複数取得できた場合
-            If Not (applicantName(0) <> "" And applicantName(1) = "") Then
-                Dim appNameLong(1) As Long
-                
-                If InStr(applicantName(0), "名分") > 0 And InStr(applicantName(1), "名分") = 0 Then
-                    appNameLong(0) = CInt(Replace(applicantName(0), "名分", ""))
-                    applicantName(0) = appNameLong(0) + 1 & "名分"
-                ElseIf InStr(applicantName(0), "名分") = 0 And InStr(applicantName(1), "名分") > 0 Then
-                    appNameLong(1) = CInt(Replace(applicantName(1), "名分", ""))
-                    applicantName(0) = 1 + appNameLong(1) & "名分"
-                ElseIf InStr(applicantName(0), "名分") > 0 And InStr(applicantName(1), "名分") > 0 Then
-                    appNameLong(0) = CInt(Replace(applicantName(0), "名分", ""))
-                    appNameLong(1) = CInt(Replace(applicantName(1), "名分", ""))
-                    applicantName(0) = appNameLong(0) + appNameLong(1) & "名分"
-                ElseIf InStr(applicantName(0), "名分") = 0 And InStr(applicantName(1), "名分") = 0 Then
-                    applicantName(0) = "2名分"
-                End If
-            End If
-            XMLInfoFolderName = companyName(0) & "_" & applicantName(0) & "_" & applicationType(0)
-        End If
-        'コピー先パス
-        originPath = outputPath & "\" & Left(applicationDate(0), 4) & "年\" & month & "月\" & applicationDate(0) & "\" & XMLInfoFolderName
-        
-        'フォルダ名重複確認
-        If Dir(originPath, vbDirectory) = "" Then
-            searchPath = originPath
-        Else
-            Do While Dir(searchPath, vbDirectory) <> ""
-                searchPath = originPath & "_" & suf
-                suf = suf + 1
-            Loop
-            sufFlg = True
-        End If
-        'フォルダ作成
-        Call createFolder(searchPath)
-        
-        For Each file In srcFolder.Files
-            collKey = srcFolder.parentfolder
-            If LCase(fso.GetExtensionName(file.Name)) = "xml" Then
-                'ログ重複確認
-                If ExistsItem(coll, collKey, sufFlg) Then
-                    copyFlg = True
-                    coll.Add collKey
-                    'コピー
-                    fso.copyfolder file.parentfolder.parentfolder.Path, searchPath
-                    srcPath = file.parentfolder.parentfolder.Path
-                End If
-            End If
-        Next file
-        If copyFlg Then
-            logFile.writeline "[INFO]   ：コピー元   " & srcPath
-            logFile.writeline "[INFO]   ：コピー成功 " & searchPath
-            If applicantName(0) = "" Then
-                logFile.writeline "[CAUTION]：XMLから対象者名が取得できなかったので、対象者名無しで出力しています。"
-            ElseIf applicantName(0) = "雇用保険のため、対象者名なし" Then
-                logFile.writeline "[CAUTION]：申請種別が雇用保険のため、対象者名無しで出力しています。"
-            End If
-            logFile.writeline "[INFO]   ：---------------------------------------------------"
-            OKflg = True
-        End If
+        logFile.writeline "[INFO]   ：---------------------------------------------------"
+        OKflg = True
     End If
     
     '結果返却
@@ -333,40 +293,57 @@ Function copyXMLFiles(outputPath As String, ws As Worksheet, extractedData As Co
     
 End Function
 
-'ログ重複確認処理
-Function ExistsItem(objCol As Collection, varItem As Variant, sufFlg As Boolean) As Boolean
-     
-    Dim v As Variant
-     
-    '戻り値の初期値：False
-    ExistsItem = True
-    
-    'sufFlgがTrueの場合は戻り値「True」（Collection内で重複してもXMLをコピーするため）
-    If sufFlg = True Then Exit Function
-     
-    'Collectionのメンバー数が「0」の場合は戻り値「True」
-    If objCol.Count = 0 Then Exit Function
-     
-    'Collectionの各メンバーと突合
-    For Each v In objCol
-         
-        '突合結果が一致した場合：戻り値「False」にループ抜け（ログ出力しない）
-       If v = varItem Then ExistsItem = False: Exit For
-         
-    Next
-     
-End Function
-
-Sub createFolder(searchPath As String)
-    
+'引数のパスを組み合わせてフォルダを作成、作成したフォルダパスを返却
+Function createFolder(outputPath As String, sortedFolderName As String, subPath As String, applicationDate As String)
+    Dim searchPath As String
     Dim currentPath As String
+    Dim month As String
+    '未整理フラグ
+    Dim isMiseiri As Boolean
+    isMiseiri = False
+    'フォルダ名が重複した場合のsuffix
+    Dim suf As Long
+    suf = 1
     Dim t As Long
     t = 1
     Dim fso As Object
     Set fso = CreateObject("Scripting.FileSystemObject")
     
-    If Not fso.FolderExists(searchPath) Then
+    '手続完了分・審査完了分・未整理
+    If sortedFolderName = "手続完了分" Or sortedFolderName = "審査完了分" Or sortedFolderName = "未整理" Then
+        month = Mid(applicationDate, 5, 2)
+        If Left(month, 1) = "0" Then
+            month = Right(month, 1)
+        End If
+        If sortedFolderName <> "未整理" Then
+            searchPath = outputPath & "\" & sortedFolderName & "\" & Left(applicationDate, 4) & "年\" & month & "月\" & applicationDate & "\" & subPath
+        Else
+            '未整理で日付あり
+            If applicationDate <> "" Then
+                searchPath = outputPath & "\" & sortedFolderName & "\" & Left(applicationDate, 4) & "年\" & month & "月\" & applicationDate
+            Else
+                '未整理で日付なし
+                searchPath = outputPath & "\" & sortedFolderName
+            End If
+            isMiseiri = True
+        End If
         
+    Else
+        '上記以外
+        searchPath = outputPath & "\" & sortedFolderName & "\" & subPath
+    End If
+    
+    'フォルダ名重複確認：未整理フォルダは重複確認しない
+    If Not isMiseiri Then
+        If Dir(searchPath, vbDirectory) <> "" Then
+            Do While Dir(searchPath, vbDirectory) <> ""
+                searchPath = searchPath & "_" & suf
+                suf = suf + 1
+            Loop
+        End If
+    End If
+    
+    If Not fso.FolderExists(searchPath) Then
         'フォルダパスを分割
         folderParts = Split(searchPath, "\")
     
@@ -387,4 +364,7 @@ Sub createFolder(searchPath As String)
             End If
         Next i
     End If
-End Sub
+    createFolder = searchPath
+End Function
+
+

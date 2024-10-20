@@ -17,14 +17,14 @@ Sub getFoldersAndFiles(folderPath As Object, wsRow As Long, ws As Worksheet, ws2
     Dim var As Variant
     
     Set fso = CreateObject("Scripting.FileSystemObject")
-    Set folder = fso.GetFolder(folderPath) 'ここのパスは案件フォルダ名  ex.C:\work\o-td-tools\資料\01_テスト\0604384629
+    Set folder = fso.GetFolder(folderPath)       'ここのパスは案件フォルダ名  ex.C:\work\o-td-tools\資料\01_テスト\0604384629
     hasXML = False
     
     'サブフォルダのコレクションを取得　ここは公文書フォルダ
     Dim subFolders As Object
     Set subFolders = folder.subFolders
     
-    'サブフォルダの数を取得
+    'サブフォルダの数を取得 公文書1と公文書2までの想定
     Dim subFolderArray() As Object
     ReDim subFolderArray(1 To folder.subFolders.Count)
     
@@ -34,13 +34,6 @@ Sub getFoldersAndFiles(folderPath As Object, wsRow As Long, ws As Worksheet, ws2
         Set subFolderArray(w) = subFolder
         w = w + 1
     Next subFolder
-    
-    '各保険のリストを取得
-    Dim socialInsList As Variant
-    socialInsList = getIdList(1)
-    
-    Dim employInsList As Variant
-    employInsList = getIdList(2)
     
     For i = 1 To folder.subFolders.Count
     
@@ -56,19 +49,39 @@ Sub getFoldersAndFiles(folderPath As Object, wsRow As Long, ws As Worksheet, ws2
             'ファイルのリスト
             For Each file In subFolderArray(i).Files
                 wsRow = wsRow + 1
-                ws.Cells(wsRow, 5).Value = file.Path  'マクロシートのE列にファイルパスをセット
+                ws.Cells(wsRow, 5).Value = file.path 'マクロシートのE列にファイルパスをセット
                 If LCase(fso.GetExtensionName(file.Name)) = "xml" Then
                     ' XMLファイルの内容を読み取る
-                    Call ReadXMLFile(file.Path, ws, wsRow, socialInsList, employInsList)
+                    Call ReadXMLFile(file.path, ws, wsRow)
                 End If
             Next file
         End If
-        
     Next i
+    
+    'テキストファイルの情報は最終行に値反映
+    'da_info.txtの存在チェック：存在しない場合の挙動は現時点で指示なし
+    Dim daInfoPath As String
+    daInfoPath = folderPath & "\da_info.txt"
+    
+    If isFileExists(daInfoPath) Then
+        'da_info.txtの値取得
+        Call ReadDaInfo(daInfoPath, ws, wsRow)
+    End If
+    
+    'da_comment.txtの存在チェック
+    Dim daCommentPath As String
+    daCommentPath = folderPath & "\da_comment.txt"
+    If isFileExists(daCommentPath) Then
+        With ws.Cells(wsRow, 15)
+            .Value = "○"
+            .HorizontalAlignment = xlCenter
+        End With
+    End If
+    
 End Sub
 
 'XMLファイルのタグから情報を取得
-Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long, socialInsList As Variant, employInsList As Variant)
+Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long)
     Dim xmlDoc As Object
     Set xmlDoc = CreateObject("MSXML2.DOMDocument")
     xmlDoc.async = False
@@ -80,23 +93,15 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long, socialIns
     End If
     
     '社会保険用
-    Dim applicationDate As String   '申請日
-    Dim companyName As String       '事業所名
-    Dim applicantName As String     '対象者名
-    Dim applicationType As String   '申請種別
-    
+    Dim applicationDate As String                '申請日
     applicationDate = ""
-    companyName = ""
-    applicantName = ""
-    applicationType = ""
-
     
     '雇用保険用
-    Dim empInsFlg As Boolean        '雇用保険判定用
-    Dim docNo As String             'ドキュメントNo
-    Dim affiliateName As String     '事業所名
-    Dim employeeName As String      '対象者名
-    Dim titleName As String         '申請種別
+    Dim empInsFlg As Boolean                     '雇用保険判定用
+    Dim docNo As String                          'ドキュメントNo
+    Dim affiliateName As String                  '事業所名
+    Dim employeeName As String                   '対象者名
+    Dim titleName As String                      '申請種別
     
     empInsFlg = False
     docNo = ""
@@ -120,30 +125,15 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long, socialIns
     Dim nodes As Object
     Dim node As Object
     
-    '雇用保険判定 雇用保険の場合、NAMEタグは事業主名を示しているため、必ずしも対象者名とはならない。対象者名はなしで整理する方針。NAMEタグで取得した文字列が「Faith経営労務事務所」の場合はエラーとする。
+    '雇用保険判定 申請日付のみ取得
     If InStr(docNo, "到達番号：") > 0 And affiliateName <> "" And titleName <> "" And empInsAppDate <> "" Then
-        
-        ws.Cells(rowIndex, 8).Value = affiliateName
-        ws.Cells(rowIndex, 10).Value = isInIdList(titleName, employInsList)
-        
-        'NAMEタグが「Faith経営労務事務所」かどうかのフラグ
-        Dim isFaithFlg As Boolean
-        isFaithFlg = False
-        
-        'NAMEタグが「Faith経営労務事務所」かチェック
-        isFaithFlg = checkFaith(isFaithFlg, employeeName)
-        If isFaithFlg Then
-            ws.Cells(rowIndex, 9).Value = "Faith経営労務事務所"
-        Else
-            ws.Cells(rowIndex, 9).Value = "雇用保険のため、対象者名なし"
-        End If
-        
+
         Dim regex As Object
         Set regex = CreateObject("VBScript.RegExp")
         regex.Global = True
         
-        Dim dateType As String          '日付種類（和暦）
-        Dim dateYear As Long            '和暦→西暦変換用
+        Dim dateType As String                   '日付種類（和暦）
+        Dim dateYear As Long                     '和暦→西暦変換用
         
         '日付を和暦から西暦へ変換
         Set nodes = xmlDoc.SelectSingleNode("//DATE")
@@ -152,58 +142,18 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long, socialIns
         dateYear = Left(empInsAppDate, 2)
         
         'dateTypeの仕様が定かではないが、以下の通り和暦から西暦へ変換する　昭和から令和まで
-        If dateType = 3 Then '昭和
+        If dateType = 3 Then                     '昭和
             empInsAppDate = dateYear + 1925 & Right(empInsAppDate, 4)
-        ElseIf dateType = 4 Then '平成
+        ElseIf dateType = 4 Then                 '平成
             empInsAppDate = dateYear + 1988 & Right(empInsAppDate, 4)
-        ElseIf dateType = 5 Then '令和
+        ElseIf dateType = 5 Then                 '令和
             empInsAppDate = dateYear + 2018 & Right(empInsAppDate, 4)
         End If
         
         ws.Cells(rowIndex, 7).Value = empInsAppDate
-                
-        Set nodes = Nothing
-        hasInfo = True
+
     Else
-    '社会保険の情報取得
-    
-        '会社名は<～事業所名称>となっているタグから取得する
-        Dim regexA As Object
-        Set regexA = CreateObject("VBScript.RegExp")
-        regexA.Pattern = ".*事業所名称$"
-        regexA.Global = True
-        
-        '船舶用 会社名は<～事業所名称x船舶所有者氏名>となっているタグから取得する
-        Dim regexJ As Object
-        Set regexJ = CreateObject("VBScript.RegExp")
-        regexJ.Pattern = ".*事業所名称x船舶所有者氏名$"
-        regexJ.Global = True
-        
-        '対象者人数
-        Dim appCnt As Long
-        appCnt = 0
-        
-        '対象者名は<*被保険者漢字氏名>、<*被保険者氏名x漢字氏名>、<*被用者漢字氏名>となっているタグから取得する
-        Dim regexB As Object
-        Set regexB = CreateObject("VBScript.RegExp")
-        regexB.Pattern = ".*被保険者漢字氏名$"
-        regexB.Global = True
-        Dim BName As String
-        BName = ""
-        
-        Dim regexC As Object
-        Set regexC = CreateObject("VBScript.RegExp")
-        regexC.Pattern = ".*被保険者氏名x漢字氏名$"
-        regexC.Global = True
-        Dim CName As String
-        CName = ""
-        
-        Dim regexD As Object
-        Set regexD = CreateObject("VBScript.RegExp")
-        regexD.Pattern = ".*被用者漢字氏名$"
-        regexD.Global = True
-        Dim DName As String
-        DName = ""
+        '社会保険の情報取得
         
         '申請日は<～提出年月日>となっているタグから取得する
         Dim regexE As Object
@@ -211,42 +161,11 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long, socialIns
         regexE.Pattern = ".*提出年月日$"
         regexE.Global = True
         
-        '名前を格納するコレクションを作成
-        Dim names As Collection
-        Set names = New Collection
-        
         ' XML内のすべてのノードを取得
         Set nodes = xmlDoc.getElementsByTagName("*")
         
         ' 特定のパターンに一致する値を検索
         For Each node In nodes
-            '会社名(最初に取得できたタグから)
-            If companyName = "" Then
-                If regexA.Test(node.tagName) Then
-                    companyName = node.Text
-                ElseIf regexJ.Test(node.tagName) Then
-                    companyName = node.Text
-                End If
-            End If
-            '対象者名
-            If regexB.Test(node.tagName) Then
-                BName = node.Text
-                If BName <> "" Then
-                    names.Add BName
-                End If
-            End If
-            If regexC.Test(node.tagName) Then
-                CName = node.Text
-                If CName <> "" Then
-                    names.Add CName
-                End If
-            End If
-            If regexD.Test(node.tagName) Then
-                DName = node.Text
-                If DName <> "" Then
-                    names.Add DName
-                End If
-            End If
             
             '申請日
             If regexE.Test(node.tagName) Then
@@ -273,11 +192,11 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long, socialIns
                 
                 '<～提出年月日>のタグの中の年月日タグを取得する
                 Dim childNode As Object
-                Dim appEra As String            '申請日-元号
-                Dim appYear As String           '申請日-年（文字列）
-                Dim appYearLong As Long         '申請日-年（数値）
-                Dim appMonth As String          '申請日-月
-                Dim appDay As String            '申請日-日
+                Dim appEra As String             '申請日-元号
+                Dim appYear As String            '申請日-年（文字列）
+                Dim appYearLong As Long          '申請日-年（数値）
+                Dim appMonth As String           '申請日-月
+                Dim appDay As String             '申請日-日
                 appEra = ""
                 appYear = ""
                 appMonth = ""
@@ -321,49 +240,16 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long, socialIns
                 
                 applicationDate = appYear & appMonth & appDay
                 
-                Set regexF = Nothing
-                Set regexG = Nothing
-                Set regexH = Nothing
-                Set regexI = Nothing
-                
             End If
         Next node
         
-        Set regexA = Nothing
-        Set regexB = Nothing
-        Set regexC = Nothing
-        Set regexD = Nothing
         Set regexE = Nothing
-        
-        '対象者0名
-        If names.Count = 0 Then
-            applicantName = ""
-        ElseIf names.Count = 1 Then
-        '対象者1名
-            applicantName = names(1)
-        ElseIf names.Count > 1 Then
-        '対象者名2名以上
-            applicantName = names.Count & "名分"
-        End If
         
         applicationType = xmlDoc.SelectSingleNode("//様式ID").Text
         On Error GoTo 0
         
         If applicationDate <> "" Then
             ws.Cells(rowIndex, 7).Value = applicationDate
-            hasInfo = True
-        End If
-        If companyName <> "" Then
-            ws.Cells(rowIndex, 8).Value = companyName
-            hasInfo = True
-        End If
-        If applicantName <> "" Then
-            ws.Cells(rowIndex, 9).Value = applicantName
-            hasInfo = True
-        End If
-        '様式IDが取得できていればIDリストと照合
-        If applicationType <> "" Then
-            ws.Cells(rowIndex, 10).Value = isInIdList(applicationType, socialInsList)
             hasInfo = True
         End If
         
@@ -377,50 +263,79 @@ Sub ReadXMLFile(filePath As String, ws As Worksheet, rowIndex As Long, socialIns
     End If
 End Sub
 
-'各種保険のリストを取得
-Function getIdList(i As Long) As Variant
-    '様式IDの追加削除がある場合は「社会保険_様式IDマスタ」シートを修正する
-    'TITLEの追加削除がある場合は「雇用保険_申請種別マスタ」シートを修正する
-    Dim maxRow As Long
-    Dim DataRange As Range
-    Dim ws As Worksheet
-    
-    If i = 1 Then
-        Set ws = Worksheets("社会保険_様式IDマスタ")
-    ElseIf i = 2 Then
-        Set ws = Worksheets("雇用保険_申請種別マスタ")
+'テキストファイルの存在確認
+Function isFileExists(filePath As String) As Boolean
+    If Dir(filePath) <> "" Then
+        isFileExists = True
+    Else
+        isFileExists = False
     End If
-    
-    '最終行の取得
-    maxRow = ws.Cells(Rows.Count, 2).End(xlUp).row
-    
-    'データ範囲の設定
-    Set DataRange = ws.Range(ws.Cells(2, 1), ws.Cells(maxRow, 2))
-    
-    'データ範囲を配列に格納
-    dataArray = DataRange.Value
-    
-    '二次元配列を返却
-    getIdList = dataArray
-
 End Function
 
-'取得した様式IDの値がidListに存在しているかチェック　存在する場合は略称を返却、存在しない場合は略称不明を返却 → 社会保険、雇用保険共通処理
-Function isInIdList(checkValue As String, arr As Variant) As String
-    Dim i As Long
+'da_info.txtから値取得
+Sub ReadDaInfo(txtPath As String, ws As Worksheet, rowIndex As Long)
+    Dim FileContent As String
+    Dim TextLine As String
+    Dim InfoDict As Object
+    Dim Key As String, Value As String
+    Dim fileNum As Integer
+    Dim Lines() As String
+    Dim i As Integer
+    Dim Stream As Object
     
-    For i = LBound(arr) To UBound(arr)
-        If arr(i, 1) = checkValue Then
-            isInIdList = arr(i, 2)
-            Exit Function
+    On Error Resume Next
+    
+    ' Dictionaryオブジェクトを作成
+    Set InfoDict = CreateObject("Scripting.Dictionary")
+    
+    ' ADODB.Streamオブジェクトを作成
+    Set Stream = CreateObject("ADODB.Stream")
+    
+    ' 文字列モードでストリームを開く
+    Stream.Type = 2                              ' 文字列モード
+    Stream.Charset = "UTF-16"                    ' UTF-16として読み込む
+    Stream.Open
+    Stream.LoadFromFile txtPath
+    
+    ' ファイル内容を一括で読み込む
+    FileContent = Stream.ReadText
+    
+    ' ストリームを閉じる
+    Stream.Close
+    On Error GoTo 0
+    
+    If FileContent <> "" Then
+        ' 改行で分割して行ごとに処理
+        Lines = Split(FileContent, vbCrLf)
+        
+        For i = LBound(Lines) To UBound(Lines)
+            TextLine = Lines(i)
+            ' ":"（全角コロン）を基準に分割して項目名と値を取得
+            If InStr(TextLine, "：") > 0 Then
+                Key = Trim(Split(TextLine, "：")(0)) ' 項目名を取得
+                Value = Trim(Split(TextLine, "：")(1)) ' 値を取得
+                InfoDict(Key) = Value            ' Dictionaryに格納
+            End If
+        Next i
+        
+        ' 項目をマクロシートへ転記
+        ws.Cells(rowIndex, 8).Value = InfoDict("種別")
+        ws.Cells(rowIndex, 9).Value = InfoDict("手続名")
+        ws.Cells(rowIndex, 10).Value = InfoDict("会社名")
+        ws.Cells(rowIndex, 11).Value = InfoDict("内容")
+        ws.Cells(rowIndex, 12).Value = InfoDict("状況")
+        ws.Cells(rowIndex, 13).Value = InfoDict("審査完了")
+        ws.Cells(rowIndex, 14).Value = InfoDict("手続完了")
+        
+        '内容（対象者名）が「Faith経営労務事務所」かチェック
+        If checkFaith(InfoDict("内容")) Then
+            ws.Cells(rowIndex, 11).Value = "Faith経営労務事務所"
         End If
-    Next i
-    
-    isInIdList = "申請種別 略称不明"  'IDが見つからない場合
-End Function
+    End If
+End Sub
 
-'NAMEタグが「Faith経営労務事務所」かどうか確認メソッド
-Function checkFaith(flg As Boolean, nameStr As String)
+'対象者名が「Faith経営労務事務所」かどうか確認メソッド
+Function checkFaith(nameStr As String)
     
     '空白を削除
     nameStr = Replace(Trim(nameStr), " ", "")
@@ -440,20 +355,3 @@ Function checkFaith(flg As Boolean, nameStr As String)
     
 End Function
 
-'もしかしたら後で急に使うことになるかもしれないので、残しておく
-Sub docNo()
-    'DOCNOに「到達番号：」が含まれているので、それを取り除く処理
-    regex.Pattern = "(\d+)"
-    '数値以外が含まれている場合
-    If Not regex.Test(docNo) Then
-        '一旦文字列を半角に変換
-        applicationDate = StrConv(docNo, vbNarrow)
-        ' 数字のみを抽出
-        For i = 1 To Len(docNo)
-            If Mid(docNo, i, 1) Like "[0-9]" Then
-                result = result & Mid(docNo, i, 1)
-            End If
-        Next i
-        docNo = result
-    End If
-End Sub

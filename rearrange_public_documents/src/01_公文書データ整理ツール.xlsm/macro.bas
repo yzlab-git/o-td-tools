@@ -40,7 +40,7 @@ Sub 初期化()
     Set sc = New startCategorize
     
     rs = MsgBox("初期化を実行しますか？" & vbLf & vbLf & "※以下の情報を削除します。" & vbLf _
-    & "・読取フォルダ" & vbLf & "・出力フォルダ" & vbLf & "・実行日時" & vbLf & "・成功件数" & vbLf & "・未整理件数", vbYesNo)
+    & "・読取フォルダ" & vbLf & "・出力フォルダ" & vbLf & "・実行日時" & vbLf & "・成功件数" & vbLf & "・未整理件数" & vbLf & "・未処理件数", vbYesNo)
     
     If rs = vbNo Then
         MsgBox "初期化を中断しました。"
