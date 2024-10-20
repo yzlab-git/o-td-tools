@@ -8,7 +8,7 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 'XMLファイルを含むフォルダの中身を識別して、XMLファイル読取処理を行う
-Sub getFoldersAndFiles(folderPath As Object, wsRow As Long, ws As Worksheet, ws2 As Worksheet)
+Sub getFoldersAndFiles(folderPath As Object, wsRow As Long, ws As Worksheet)
     Dim fso As Object
     Dim folder As Object
     Dim subFolder As Object

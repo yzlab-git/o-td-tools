@@ -15,9 +15,7 @@ Sub startCategorize()
     Set ox = New organizeXML
     
     Dim ws As Worksheet
-    Dim ws2 As Worksheet
     Set ws = Worksheets("マクロ")
-    Set ws2 = Worksheets("社会保険_様式IDマスタ")
     
     Dim fso As Object
     Set fso = CreateObject("Scripting.FileSystemObject")
@@ -107,7 +105,7 @@ Sub startCategorize()
             NOcnt = NOcnt + 1
         Else
             'フォルダ読取とXMLタグより情報取得
-            Call gfc.getFoldersAndFiles(subFolderArray(i), 4, ws, ws2)
+            Call gfc.getFoldersAndFiles(subFolderArray(i), 4, ws)
             
             '取得した情報からフォルダ整理
             flg = ox.getXMLInfo(outputPath, ws, logFile, coll)
